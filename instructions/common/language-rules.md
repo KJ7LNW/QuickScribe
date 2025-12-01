@@ -207,8 +207,13 @@ Example with multiple stage changes:
 		- "Created a function"→"Create a function"
 		- Exceptions: valid passive constructions with subject ("Provided below is...")
 	- Preserve pragmatic fragments (introducer+colon: "What we need:")
+	- Isolate sentence-initial forward-pointing demonstratives as fragments with colon termination when followed by incomplete or incongruent content
+		- Patterns: "the following" / "as follows" / "here is what" / "here's what" / "note these" / "observe this" / "consider these" sentence-initial
+		- Test: demonstrative creates expectation of continuation that following content fails to satisfy
+		- Delete or restructure incomplete trailing content
+		- Example: "The following he does not know yet."→"The following:"
 	- Terminate forward-pointing demonstratives with colon when sentence ends with demonstrative creating incomplete reference requiring continuation
-		- Common ending patterns include: "of the following" / "like this" / "such as these" / "as follows" / "shown here" / "note these" / "see this" / "observe this" / "include these" / "consider these" / "the following" / "as shown here" / "here is what" / "here's what"
+		- Common ending patterns: "of the following" / "like this" / "such as these" / "as follows" / "shown here" / "note these" / "see this" / "observe this" / "include these" / "consider these" / "the following" / "as shown here" / "here is what" / "here's what"
 		- Test: removing demonstrative-ending leaves incomplete thought requiring continuation
 		- Append colon when test confirms forward reference
 		- Preserve when referent is complete: "this works" / "following day" / "like this one"
