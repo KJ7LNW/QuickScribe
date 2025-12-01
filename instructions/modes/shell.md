@@ -54,6 +54,7 @@ Command substitution: dollar of command→$(command)
 
 CASE CONVENTIONS:
 Default lowercase except: SQL keywords (uppercase), user directories (Documents, Downloads)
+Flag arguments default lowercase unless uppercase explicitly verbalized: "dash L"→-l not -L
 
 RECOGNITION PATTERNS:
 Directory names parse as semantic units not letter sequences

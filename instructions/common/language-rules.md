@@ -33,6 +33,11 @@ Example with multiple stage changes:
 	- Ambiguity notation: Select correct alternative from {option1|option2}, remove braces
 	- Resolve acronym boundary ambiguities: when letter sequence followed by homophone-sounding word produces grammatical error, test whether combining forms valid acronym (APA + our → APAR when "APA our document" is malformed but "APAR document" is valid)
 	- Apply domain knowledge to resolve underspecified technical references using surrounding context (e.g., "PR_star" with Linux→pr_*)
+	- Resolve stop insertion at word boundaries in rapid speech
+		- Alveolar fricative + vowel: /z/+V inserts /d/, /s/+V inserts /t/: "realize it"→"realized it", "place it"→"placed it"
+		- Test: remove apparent suffix (-ed, -d, -t); verify base form + following word produces valid syntax
+		- Apply grammatical form matching sentence structure: present tense without temporal marker, past tense with past temporal context
+		- Alveolar position required: /z/, /s/, /n/ before vowels; excludes labial /v/, /f/ and other positions
 	- Remove disfluencies: um/uh/er/ah/err filled pauses
 	- Remove non-speech audio: sound effects, onomatopoeia, acoustic annotations (beep/buzz/click/music/etc.)
 	- Delete original utterance before repair marker
@@ -69,6 +74,7 @@ Example with multiple stage changes:
 			- Apply formatting, consume directive language; do not include directive words in output
 	- Expand speaker spelling: L-I-N-U-X→Linux (proper capitalization, not acronym unless context confirms)
 	- Convert verbalized wildcards: "star"/"asterisk"→* in code patterns; apply code delimitation rules
+	- Apply flag case convention: "dash L"→-l not -L; default lowercase unless uppercase explicitly verbalized
 - `<int1>` Correct morphological agreement
 	- Correct subject-verb agreement: verb agrees with head noun of subject noun phrase, not with nouns in modifying prepositional phrases or relative clauses
 		- *it do not→it does not
