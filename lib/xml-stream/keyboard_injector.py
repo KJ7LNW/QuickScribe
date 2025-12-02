@@ -1,19 +1,35 @@
 """Keyboard injector interface for XML stream processor."""
 
 from abc import ABC, abstractmethod
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from processing_session import ProcessingSession
 
 
 class KeyboardInjector(ABC):
     """Abstract interface for keyboard injection operations."""
-    
+
     @abstractmethod
     def bksp(self, count: int) -> None:
         """Backspace count characters."""
         pass
-    
+
     @abstractmethod
     def emit(self, text: str) -> None:
         """Emit text at current cursor position."""
+        pass
+
+    def get_trigger_window_id(self) -> Optional[str]:
+        """Get active window ID at trigger time. Platform-specific implementations override."""
+        return None
+
+    def prepare_for_session(self, session: 'ProcessingSession') -> None:
+        """Prepare keyboard injector for processing a specific session."""
+        pass
+
+    def cleanup_session(self) -> None:
+        """Clean up session-specific state after processing completes."""
         pass
 
 

@@ -5,11 +5,15 @@ import os
 import sys
 import time
 import threading
+from typing import Optional, TYPE_CHECKING
 sys.path.append(os.path.join(os.path.dirname(__file__), 'xml-stream'))
 from keyboard_injector import KeyboardInjector
 sys.path.insert(0, os.path.dirname(__file__))
 from pr_log import pr_err, pr_debug
 from pynput import keyboard
+
+if TYPE_CHECKING:
+    from processing_session import ProcessingSession
 
 
 class ModifierStateTracker:
@@ -101,10 +105,84 @@ class XdotoolKeyboardInjector(KeyboardInjector):
             any("pytest" in arg for arg in sys.argv if arg)
         )
         self._modifier_tracker = ModifierStateTracker()
+        self._session_window_id: Optional[str] = None
+
+    def get_trigger_window_id(self) -> Optional[str]:
+        """Get active window ID at trigger time using xdotool."""
+        if self.test_mode:
+            return None
+
+        try:
+            result = subprocess.run(
+                ["xdotool", "getactivewindow"],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            window_id = result.stdout.strip()
+            if self.debug_enabled:
+                pr_debug(f"Captured trigger window ID: {window_id}")
+            return window_id
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            if self.debug_enabled:
+                pr_debug(f"Failed to capture window ID: {str(e)}")
+            return None
+
+    def prepare_for_session(self, session: 'ProcessingSession') -> None:
+        """Prepare keyboard injector for processing a specific session."""
+        if hasattr(session, 'recording_session') and hasattr(session.recording_session, 'window_id'):
+            self._session_window_id = session.recording_session.window_id
+            if self.debug_enabled and self._session_window_id is not None:
+                pr_debug(f"Session window ID set to: {self._session_window_id}")
+
+    def cleanup_session(self) -> None:
+        """Clean up session-specific state after processing completes."""
+        self._session_window_id = None
+
+    def _get_current_window_id(self) -> Optional[str]:
+        """Get current active window ID."""
+        if self.test_mode:
+            return None
+
+        try:
+            result = subprocess.run(
+                ["xdotool", "getactivewindow"],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            return result.stdout.strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return None
+
+    def _wait_for_session_window(self) -> None:
+        """Block until active window matches session window, similar to modifier key gating."""
+        if self._session_window_id is None:
+            return
+
+        waiting_logged = False
+        current_window = self._get_current_window_id()
+
+        while current_window != self._session_window_id or current_window is None:
+            if current_window is None:
+                if self.debug_enabled and not waiting_logged:
+                    pr_debug("Cannot determine current window, waiting...")
+                    waiting_logged = True
+            else:
+                if self.debug_enabled and not waiting_logged:
+                    pr_debug(f"Waiting for window {self._session_window_id} (current: {current_window})")
+                    waiting_logged = True
+
+            time.sleep(0.1)
+            current_window = self._get_current_window_id()
+
+        if waiting_logged and self.debug_enabled:
+            pr_debug("Window restored, proceeding")
 
     def _run_xdotool(self, cmd: list) -> None:
         """Execute xdotool command after waiting for modifier keys to be released."""
         self._modifier_tracker.wait_for_no_modifiers()
+        self._wait_for_session_window()
 
         try:
             if self.debug_enabled:

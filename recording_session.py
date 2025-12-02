@@ -3,6 +3,7 @@ Recording session identity representing who initiated a recording.
 """
 import time
 from enum import Enum
+from typing import Optional
 
 
 class RecordingSource(Enum):
@@ -15,9 +16,10 @@ class RecordingSource(Enum):
 class RecordingSession:
     """Session identity representing who initiated a recording."""
 
-    def __init__(self, source: RecordingSource):
+    def __init__(self, source: RecordingSource, window_id: Optional[str] = None):
         self.source: RecordingSource = source
         self.start_time: float = time.time()
+        self.window_id: Optional[str] = window_id
 
     def should_abort_on_keystroke(self) -> bool:
         """Check if keystroke should abort this recording."""

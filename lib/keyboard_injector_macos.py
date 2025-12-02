@@ -3,10 +3,14 @@
 import sys
 import os
 import time
+from typing import Optional, TYPE_CHECKING
 sys.path.append(os.path.join(os.path.dirname(__file__), 'xml-stream'))
 from keyboard_injector import KeyboardInjector
 sys.path.insert(0, os.path.dirname(__file__))
 from pr_log import pr_err, pr_alert, pr_debug
+
+if TYPE_CHECKING:
+    from processing_session import ProcessingSession
 
 try:
     from Quartz.CoreGraphics import (
@@ -190,3 +194,15 @@ class MacOSKeyboardInjector(KeyboardInjector):
             pr_err(f"macOS text emission failed: {str(e)}")
             if "accessibility" in str(e).lower() or "permission" in str(e).lower():
                 self._show_permission_instructions()
+
+    def get_trigger_window_id(self) -> Optional[str]:
+        """macOS does not require window validation."""
+        return None
+
+    def prepare_for_session(self, session: 'ProcessingSession') -> None:
+        """macOS does not require session preparation."""
+        pass
+
+    def cleanup_session(self) -> None:
+        """macOS does not require session cleanup."""
+        pass

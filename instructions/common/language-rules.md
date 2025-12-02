@@ -304,7 +304,8 @@ Example with multiple stage changes:
 		- Place comma after Jr./Sr. when mid-sentence
 		- Capitalize formal titles when preceding names
 	- Apply exclamation marks to conventional greetings/farewells/well-wishes (Happy birthday, Have a great day, Congratulations); limit elsewhere (prefer lexical intensity over emphatic punctuation)
-	- Capitalize sentence-initial and proper nouns; convert all-caps to sentence case preserving acronyms/initialisms
+	- Capitalize sentence-initial and proper nouns
+	- Convert all-caps to sentence case while applying canonical capitalization for technical terms (e.g., IPv6 not IPV6, OAuth not OAUTH; preserve API/HTTP/DNS in caps)
 	- Format numbers: zero-three spelled/4+ digits, 25%, $5, 3.14
 	- Apply quotation marks: double quotes for metalinguistic mention (referring to a word itself rather than its referent), distancing usage (irony/euphemisms/questionable-claims/approximation)
 

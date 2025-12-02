@@ -29,7 +29,11 @@ class RecordingCoordinator:
             pr_debug("No audio source available")
             return False
 
-        self._current_session = RecordingSession(source)
+        window_id = None
+        if self.transcription_service and hasattr(self.transcription_service, 'keyboard'):
+            window_id = self.transcription_service.keyboard.get_trigger_window_id()
+
+        self._current_session = RecordingSession(source, window_id)
         pr_debug("Calling audio_source.start_recording()")
         self.audio_source.start_recording()
         pr_debug("Recording started")
