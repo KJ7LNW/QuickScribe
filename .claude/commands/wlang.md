@@ -16,3 +16,4 @@ or duplicate meaning. This is for artificial intelligence guidance, not for
 human interpretation. Show me the suggested change by performing the edit and I
 will either accept or deny with guidance.  
 
+ultrathink

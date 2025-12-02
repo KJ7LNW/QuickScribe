@@ -32,7 +32,11 @@ Example with multiple stage changes:
 	- Convert verbalized wildcards
 	- Ambiguity notation: Select correct alternative from {option1|option2}, remove braces
 	- Resolve acronym boundary ambiguities: when letter sequence followed by homophone-sounding word produces grammatical error, test whether combining forms valid acronym (APA + our → APAR when "APA our document" is malformed but "APAR document" is valid)
-	- Apply domain knowledge to resolve underspecified technical references using surrounding context (e.g., "PR_star" with Linux→pr_*)
+	- Apply domain knowledge to resolve underspecified technical references using surrounding context
+		- Underspecified patterns (e.g., "PR_star" with Linux→pr_*)
+		- Verbalized identifiers: render as typed when used as subjects or references, not as executable commands (e.g., "system D"→systemd, "postgres Q L"→PostgreSQL)
+		- When identifiers appear in executable commands, entire command receives backticks at int2b stage (e.g., `systemctl restart nginx`)
+		- Test: identifier exists as typed string in technical domain
 	- Resolve stop insertion at word boundaries in rapid speech
 		- Alveolar fricative + vowel: /z/+V inserts /d/, /s/+V inserts /t/: "realize it"→"realized it", "place it"→"placed it"
 		- Test: remove apparent suffix (-ed, -d, -t); verify base form + following word produces valid syntax
@@ -66,6 +70,7 @@ Example with multiple stage changes:
 		- Markup: bold→**/italic→*/code→`/link→[]()
 		- Capitalization: capitalize→Title/caps→UPPER/lowercase→lower/all cap→UPPER/all capital→UPPER
 		- Correction: scratch→delete-preceding/undo→revert-last
+		- Spelling clarification: "X is spelled Y"→apply Y to preceding occurrence of X; "spelled Y"→apply Y to preceding term
 		- Detect implicit directives: conversational patterns signaling formatting intent
 			- Punctuation word + hedge phrase: "parenthesis I think"→(I think), "comma you know"→, you know,
 			- Paired explicit form: "parentheses...close parentheses"→() (same output as implicit)
