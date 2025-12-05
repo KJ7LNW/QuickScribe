@@ -270,6 +270,8 @@ Example with multiple stage changes:
 	- Integrate sentence-initial frame-setters via comma when followed by propositional content ("just in case, internally it...")
 	- Convert verbalized punctuation: "comma"→,
 	- Mark interrogatives: test patterns in order; apply first match
+		- Resolve modal + ambiguous verb/noun: when modal auxiliary precedes term functioning as both verb and noun, prefer interrogative parse (auxiliary-initial with nominal subject) if term is technical identifier in technical domain
+			- Pattern: "Should extend work for any type..." → "Should `extend` work for any type...?"
 		- Embedded interrogative as complement clause → no mark (integrate with host)
 		- Auxiliary-initial with subject-auxiliary inversion → ?
 		- WH-word clause-initial → ?

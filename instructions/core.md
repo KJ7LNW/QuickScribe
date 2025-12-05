@@ -8,12 +8,11 @@ NO content MUST appear before or after the <xml> block.
 The ONE AND ONLY <xml> block contains:
 
 <xml>
-<n>[MUST list ALL silence-separated audio segment times separated by more than one second: [1,3,5,12,30,45,...] ]</n>
 <req>Mode-specific requirements (defined by active mode)</req>
 <amb>[MUST briefly list ALL possibly ambiguous terms using {brace|markup}, omit if none]</amb>
 <grm>[MUST briefly list ALL [instructed-changes] from system instructions, omit if none]</grm>
 <tx>[
-- MUST PROVIDE ABSOLUTELY LITERAL RAW transcription of ALL AUDIO SEGMENTS from n, above
+- MUST PROVIDE ABSOLUTELY LITERAL RAW transcription of ALL AUDIO SEGMENTS
 - VERBATIM, preserve EVERYTHING as heard: duplicates, stutters, false starts, repetitions, fillers
 - MUST show sound-alike terms use {option1|option2} format from <amb>
 - must show [grammatical errors], [surrounded by] square brackets from <grm>] For later cleanup
