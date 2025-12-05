@@ -76,6 +76,7 @@ class InputCoordinator:
             self.system_tray.start_recording_requested.connect(self._start_recording_from_tray)
             self.system_tray.stop_recording_requested.connect(self._stop_recording_from_tray)
             self.system_tray.quit_requested.connect(self.qt_app.quit)
+            self.system_tray.window_focus_requested.connect(self._on_window_focus_requested)
             self.system_tray.set_state(AppState.IDLE)
             pr_info("System tray initialized")
 
@@ -189,6 +190,13 @@ class InputCoordinator:
 
         session, result, context = self.app.recording_coordinator.stop_recording()
         self.app.processing_coordinator.process_recording_result(session, result, context)
+
+    def _on_window_focus_requested(self, window_id: str):
+        """Handle window focus request from system tray notification."""
+        try:
+            self.app.transcription_service.keyboard.activate_window(window_id)
+        except RuntimeError as e:
+            self.app.show_error_notification(str(e))
 
     def cleanup(self):
         """Clean up input handling resources."""

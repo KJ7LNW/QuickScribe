@@ -24,6 +24,22 @@ class KeyboardInjector(ABC):
         """Get active window ID at trigger time. Platform-specific implementations override."""
         return None
 
+    def is_session_window_active(self) -> bool:
+        """Check if session window is currently active. Default True (no window validation)."""
+        return True
+
+    def activate_window(self, window_id: str) -> None:
+        """
+        Activate specified window. Platform-specific implementations override.
+
+        Args:
+            window_id: Platform-specific window identifier
+
+        Raises:
+            RuntimeError: Window activation failed
+        """
+        raise NotImplementedError("Window activation not supported on this platform")
+
     def prepare_for_session(self, session: 'ProcessingSession') -> None:
         """Prepare keyboard injector for processing a specific session."""
         pass

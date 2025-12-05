@@ -78,7 +78,11 @@ class ModifierStateTracker:
 
 class XdotoolKeyboardInjector(KeyboardInjector):
     """Xdotool-based keyboard injector for direct system keyboard operations."""
-    
+
+    # Stabilization delay after window activation to prevent character clipping
+    # Allows window manager and target application to fully process activation before typing begins
+    WINDOW_ACTIVATION_STABILIZATION_DELAY = 0.5
+
     def __init__(self, config=None, typing_delay: int = 5):
         """
         Initialize xdotool keyboard injector.
@@ -155,15 +159,77 @@ class XdotoolKeyboardInjector(KeyboardInjector):
         except (subprocess.CalledProcessError, FileNotFoundError):
             return None
 
+    def is_session_window_active(self) -> bool:
+        """Check if session window is currently active. Returns True if no session window set."""
+        if self._session_window_id is None:
+            return True
+
+        current_window = self._get_current_window_id()
+        if current_window is None:
+            return False
+
+        return current_window == self._session_window_id
+
+    def activate_window(self, window_id: str) -> None:
+        """
+        Activate specified window and wait for activation with timeout.
+
+        Args:
+            window_id: X11 window ID to activate
+
+        Raises:
+            RuntimeError: Window activation timeout or failure
+        """
+        try:
+            subprocess.run(
+                ["xdotool", "windowactivate", "--sync", window_id],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+
+            subprocess.run(
+                ["xdotool", "windowfocus", "--sync", window_id],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+
+            start_time = time.time()
+            max_wait = 2.0
+            poll_interval = 0.1
+
+            current_active = None
+            while time.time() - start_time < max_wait and current_active != window_id:
+                result = subprocess.run(
+                    ["xdotool", "getactivewindow"],
+                    check=True,
+                    capture_output=True,
+                    text=True
+                )
+                current_active = result.stdout.strip()
+                if current_active != window_id:
+                    time.sleep(poll_interval)
+
+            if current_active != window_id:
+                raise RuntimeError(f"Failed to activate window {window_id} after {max_wait} seconds")
+
+            time.sleep(self.WINDOW_ACTIVATION_STABILIZATION_DELAY)
+
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Window activation failed for window {window_id}: {e}")
+
     def _wait_for_session_window(self) -> None:
-        """Block until active window matches session window, similar to modifier key gating."""
+        """Block until active window matches session window with timeout."""
         if self._session_window_id is None:
             return
 
         waiting_logged = False
         current_window = self._get_current_window_id()
+        start_time = time.time()
+        max_wait = 2.0
 
-        while current_window != self._session_window_id or current_window is None:
+        while (current_window != self._session_window_id or current_window is None) and (time.time() - start_time < max_wait):
             if current_window is None:
                 if self.debug_enabled and not waiting_logged:
                     pr_debug("Cannot determine current window, waiting...")
@@ -176,8 +242,14 @@ class XdotoolKeyboardInjector(KeyboardInjector):
             time.sleep(0.1)
             current_window = self._get_current_window_id()
 
+        if current_window != self._session_window_id or current_window is None:
+            raise RuntimeError(f"Window activation timeout: waited {max_wait} seconds for window {self._session_window_id}, current window is {current_window}")
+
         if waiting_logged and self.debug_enabled:
             pr_debug("Window restored, proceeding")
+
+        if waiting_logged:
+            time.sleep(self.WINDOW_ACTIVATION_STABILIZATION_DELAY)
 
     def _run_xdotool(self, cmd: list) -> None:
         """Execute xdotool command after waiting for modifier keys to be released."""

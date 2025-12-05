@@ -2,6 +2,7 @@
 Main dictation application using modular components.
 """
 import sys
+from typing import Optional
 from config_manager import ConfigManager
 from microphone_audio_source import MicrophoneAudioSource
 from transcription_service import TranscriptionService
@@ -48,6 +49,16 @@ class DictationApp:
         """Update application state and notify system tray."""
         if self.input_coordinator and self.input_coordinator.system_tray:
             self.input_coordinator.system_tray.set_state(new_state)
+
+    def show_notification(self, title: str, message: str):
+        """Display notification toast in system tray."""
+        if self.input_coordinator and self.input_coordinator.system_tray:
+            self.input_coordinator.system_tray.show_message(title, message)
+
+    def show_window_focus_notification(self, window_id: Optional[str], message: str):
+        """Display clickable notification to focus specific window."""
+        if self.input_coordinator and self.input_coordinator.system_tray:
+            self.input_coordinator.system_tray.show_window_focus_notification(window_id, message)
 
     def show_error_notification(self, error_message: str):
         """Display error notification in system tray and show toast."""

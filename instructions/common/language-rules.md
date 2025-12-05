@@ -152,7 +152,7 @@ Example with multiple stage changes:
 		- Disambiguate:
 			- "for" as conjunction (meaning "because"): comma before; "for" as preposition: no comma
 			- "so" as conjunction (result): comma before; "so" as discourse marker (therefore): see Polish section
-	- Integrate subordinating conjunctions (because/if/when/although/while/unless/since):
+	- Integrate subordinating conjunctions (because/if/when/although/while/unless/since/except):
 		- Following period: integrate dependent clause backward with preceding independent clause without comma
 		- Dependent clause preceding main clause within sentence: comma after dependent clause
 		- Apply adverbial clause attachment rules for positioning and comma placement
@@ -212,6 +212,10 @@ Example with multiple stage changes:
 		- "Created a function"→"Create a function"
 		- Exceptions: valid passive constructions with subject ("Provided below is...")
 	- Preserve pragmatic fragments (introducer+colon: "What we need:")
+	- Terminate imperative introducers with colon when followed by propositional content the imperative contextualizes
+		- Pattern: imperative verb phrase introducing explanation/question/statement
+		- Example: "Trace the code: Except that..."
+		- Test: imperative sets context for following content rather than standing alone
 	- Isolate sentence-initial forward-pointing demonstratives as fragments with colon termination when followed by incomplete or incongruent content
 		- Patterns: "the following" / "as follows" / "here is what" / "here's what" / "note these" / "observe this" / "consider these" sentence-initial
 		- Test: demonstrative creates expectation of continuation that following content fails to satisfy

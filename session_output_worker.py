@@ -21,10 +21,21 @@ def process_session_output(app, session: ProcessingSession):
     app.transcription_service.keyboard.prepare_for_session(session)
     app.transcription_service.reset_streaming_state()
 
+    notification_shown = False
     try:
         while not session.chunks_complete.is_set() or not session.chunk_queue.empty():
             try:
                 chunk = session.chunk_queue.get(timeout=0.1)
+
+                if not notification_shown:
+                    notification_shown = True
+                    if not app.transcription_service.keyboard.is_session_window_active():
+                        if session.recording_session.window_id is not None:
+                            app.show_window_focus_notification(
+                                session.recording_session.window_id,
+                                "Click here to return to the original window and continue output"
+                            )
+
                 app.transcription_service.process_streaming_chunk(chunk)
             except queue.Empty:
                 continue

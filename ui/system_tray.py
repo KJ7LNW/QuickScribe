@@ -28,11 +28,13 @@ class SystemTrayUI(QObject):
         start_recording_requested: User clicked start recording
         stop_recording_requested: User clicked stop recording
         quit_requested: User clicked quit
+        window_focus_requested: User clicked window focus notification, emits window ID
     """
 
     start_recording_requested = pyqtSignal()
     stop_recording_requested = pyqtSignal()
     quit_requested = pyqtSignal()
+    window_focus_requested = pyqtSignal(str)
 
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
@@ -40,6 +42,7 @@ class SystemTrayUI(QObject):
         self._current_state = AppState.IDLE
         self._tray_icon = QSystemTrayIcon(self)
         self._menu = QMenu()
+        self._pending_window_id: Optional[str] = None
 
         self._setup_menu()
         self._setup_tray()
@@ -128,6 +131,36 @@ class SystemTrayUI(QObject):
         """
         self.set_state(AppState.ERROR)
         self._tray_icon.showMessage("Dictation API error", error_message, QSystemTrayIcon.MessageIcon.Critical, 3000)
+
+    def show_window_focus_notification(self, window_id: Optional[str], message: str):
+        """
+        Display clickable notification to focus specific window.
+
+        Args:
+            window_id: X11 window ID to focus when notification clicked
+            message: Notification message to display
+        """
+        if window_id is None:
+            return
+
+        self._pending_window_id = window_id
+        self._tray_icon.messageClicked.connect(self._on_focus_notification_clicked)
+        self._tray_icon.showMessage("Window Focus Required", message, QSystemTrayIcon.MessageIcon.Information, 10000)
+
+    def _on_focus_notification_clicked(self):
+        """Handle click on window focus notification."""
+        if self._pending_window_id is None:
+            return
+
+        window_id = self._pending_window_id
+        self._pending_window_id = None
+
+        try:
+            self._tray_icon.messageClicked.disconnect(self._on_focus_notification_clicked)
+        except TypeError:
+            pass
+
+        self.window_focus_requested.emit(window_id)
 
     def cleanup(self):
         """Clean up tray icon resources."""
