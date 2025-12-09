@@ -154,7 +154,8 @@ class LiteLLMProvider(AbstractProvider):
                 "stream": False
             }
             if self.route:
-                completion_params["route"] = self.route
+                route_params = self.mapper.map_route_to_completion_params(self.route)
+                completion_params.update(route_params)
             if self.config.api_key:
                 completion_params["api_key"] = self.config.api_key
             return self.litellm.completion(**completion_params)
@@ -168,7 +169,8 @@ class LiteLLMProvider(AbstractProvider):
                 "stream": False
             }
             if self.route:
-                completion_params["route"] = self.route
+                route_params = self.mapper.map_route_to_completion_params(self.route)
+                completion_params.update(route_params)
             if self.config.api_key:
                 completion_params["api_key"] = self.config.api_key
             return self.litellm.completion(**completion_params)
@@ -185,7 +187,8 @@ class LiteLLMProvider(AbstractProvider):
                 "stream": False
             }
             if self.route:
-                completion_params["route"] = self.route
+                route_params = self.mapper.map_route_to_completion_params(self.route)
+                completion_params.update(route_params)
             if self.config.api_key:
                 completion_params["api_key"] = self.config.api_key
             return self.litellm.completion(**completion_params)
@@ -202,7 +205,8 @@ class LiteLLMProvider(AbstractProvider):
                 "stream": False
             }
             if self.route:
-                completion_params["route"] = self.route
+                route_params = self.mapper.map_route_to_completion_params(self.route)
+                completion_params.update(route_params)
             if self.config.api_key:
                 completion_params["api_key"] = self.config.api_key
             return self.litellm.completion(**completion_params)
@@ -402,7 +406,8 @@ class LiteLLMProvider(AbstractProvider):
         }
 
         if self.route:
-            completion_params["route"] = self.route
+            route_params = self.mapper.map_route_to_completion_params(self.route)
+            completion_params.update(route_params)
 
         if self.config.max_tokens is not None:
             completion_params["max_tokens"] = self.config.max_tokens

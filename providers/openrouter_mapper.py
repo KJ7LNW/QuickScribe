@@ -36,3 +36,26 @@ class OpenRouterMapper(ProviderConfigMapper):
         Return True - let OpenRouter validate model capability.
         """
         return True
+
+    def map_route_to_completion_params(self, route_value: str) -> Dict[str, Any]:
+        """
+        Map route value to OpenRouter provider configuration.
+
+        Configures provider selection with fallback and latency optimization.
+        The route_value specifies the preferred provider name.
+
+        Args:
+            route_value: Provider name from model_id@provider syntax
+
+        Returns:
+            Dictionary with extra_body.provider configuration
+        """
+        return {
+            "extra_body": {
+                "provider": {
+                    "order": [route_value],
+                    "allow_fallbacks": True,
+                    "sort": "latency"
+                }
+            }
+        }

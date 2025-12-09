@@ -60,3 +60,18 @@ class ProviderConfigMapper(ABC):
                 "format": audio_format
             }
         }
+
+    def map_route_to_completion_params(self, route_value: str) -> Dict[str, Any]:
+        """
+        Map route value to provider-specific completion parameters.
+
+        Default implementation passes route through as-is.
+        Override in provider-specific mappers for custom routing logic.
+
+        Args:
+            route_value: Route string from model_id@route syntax
+
+        Returns:
+            Dictionary with provider-specific route parameters
+        """
+        return {"route": route_value}
