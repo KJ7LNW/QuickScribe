@@ -64,11 +64,15 @@ Example with multiple stage changes:
 			- Pattern: general term followed by specific term in coordination without contrastive intent
 			- Example: "mini PCI version, mini PCIe version" → "mini PCIe version" (PCIe subsumes PCI context)
 			- Preserve when terms represent distinct alternatives in contrast: "X version, not Y version"
-	- Strip metapragmatic instruction, apply indicated transformation; transformed content recursively undergoes all subsequent stage processing
+	- Strip metapragmatic instruction, apply transformation, delete directive utterance; mark transformed content as explicitly styled
+		- Explicitly styled content exempt from automatic capitalization at int3 stage
 		- Structure: parenthetical→()/paragraph break→¶/bullet→•/numbered→1./heading→#
 		- Punctuation: period→./comma→,/semicolon→;/colon→:/question→?/dash→—/ellipsis→…
 		- Markup: bold→**/italic→*/code→`/link→[]()
 		- Capitalization: capitalize→Title/caps→UPPER/lowercase→lower/all cap→UPPER/all capital→UPPER
+			- Explicit capitalization directives override automatic proper noun capitalization
+			- "exactly lowercase"/"all lowercase"→strip all capitalization, including proper nouns
+			- "no space"→remove spacing between tokens
 		- Correction: scratch→delete-preceding/undo→revert-last
 		- Spelling clarification: "X is spelled Y"→apply Y to preceding occurrence of X; "spelled Y"→apply Y to preceding term
 		- Detect implicit directives: conversational patterns signaling formatting intent
@@ -173,7 +177,9 @@ Example with multiple stage changes:
 		- Correlative conjunctions: paired markers span single coordinated structure
 			- Patterns: either...or / neither...nor / both...and / not only...but also / whether...or / the [comparative]...the [comparative]
 			- Full clause coordination: comma before second correlative element when coordinating independent clauses
-		- Comma-separate three or more coordinated elements in list/series structures; optional comma before final conjunction
+		- Convert three or more elements with repeated conjunctions to comma-separated list; optional comma before final conjunction
+			- "A or B or C"→"A, B, or C"
+			- "X and Y and Z"→"X, Y, and Z"
 		- Comma-separate coordinate adjectives when independently modifiable (test via conjunction insertion or reordering); no comma for hierarchical/sequential modification
 		- Integrate right-node raising: shared constituent at coordination end without additional punctuation
 	- Preserve inversion structures without interrogative force:
@@ -266,6 +272,7 @@ Example with multiple stage changes:
 		- Literal command string: "`bgpctl show`" → entire command gets backticks
 		- Configuration as typed: "`protocol=bgp`" → literal syntax gets backticks
 	- Use double quotes for metalinguistic mention (referring to word itself): "backticks", "function", "array"
+	- Backticked content represents literal typed syntax; preserve exact casing and spacing from int2b stage; no automatic capitalization at int3
 - `<int3>` Apply polish
 	- Integrate sentence-initial frame-setters via comma when followed by propositional content ("just in case, internally it...")
 	- Convert verbalized punctuation: "comma"→,
@@ -311,7 +318,10 @@ Example with multiple stage changes:
 		- Capitalize formal titles when preceding names
 	- Apply exclamation marks to conventional greetings/farewells/well-wishes (Happy birthday, Have a great day, Congratulations); limit elsewhere (prefer lexical intensity over emphatic punctuation)
 	- Capitalize sentence-initial and proper nouns
+		- Skip capitalization for explicitly styled content (metapragmatic directives applied at int stage)
+		- Skip capitalization for backticked content (literal typed syntax from int2b stage)
 	- Convert all-caps to sentence case while applying canonical capitalization for technical terms (e.g., IPv6 not IPV6, OAuth not OAUTH; preserve API/HTTP/DNS in caps)
+		- Skip conversion for explicitly styled or backticked content
 	- Format numbers: zero-three spelled/4+ digits, 25%, $5, 3.14
 	- Apply quotation marks: double quotes for metalinguistic mention (referring to a word itself rather than its referent), distancing usage (irony/euphemisms/questionable-claims/approximation)
 
