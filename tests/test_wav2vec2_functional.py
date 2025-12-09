@@ -131,7 +131,7 @@ def test_dictation_app_integration():
          mock.patch('huggingface_hub.hf_hub_download', mock.Mock(return_value='/tmp/vocab.json')), \
          mock.patch('builtins.open', mock.Mock(side_effect=lambda *args, **kwargs: mock.Mock(__enter__=mock.Mock(return_value=mock.Mock()), __exit__=mock.Mock()))), \
          mock.patch('json.load', mock.Mock(return_value={'t': 1, 'ɛ': 2, 's': 3})), \
-         mock.patch('dictation_app.BaseProvider') as mock_base_provider, \
+         mock.patch('dictation_app.create_provider') as mock_create_provider, \
          mock.patch('dictation_app.TranscriptionService') as mock_transcription_service, \
          mock.patch('input_coordinator.signal', mock.Mock()), \
          mock.patch('transcription.implementations.huggingface.HuggingFaceCTCTranscriptionAudioSource.initialize', mock.Mock(return_value=True)), \
@@ -143,7 +143,7 @@ def test_dictation_app_integration():
         mock_model.from_pretrained.return_value = mock.Mock()
         mock_provider = mock.Mock()
         mock_provider.is_initialized.return_value = True
-        mock_base_provider.return_value = mock_provider
+        mock_create_provider.return_value = mock_provider
         mock_transcription_service.return_value = mock.Mock()
 
         from dictation_app import DictationApp

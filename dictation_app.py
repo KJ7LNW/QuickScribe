@@ -6,7 +6,7 @@ from typing import Optional
 from config_manager import ConfigManager
 from microphone_audio_source import MicrophoneAudioSource
 from transcription_service import TranscriptionService
-from providers.base_provider import BaseProvider
+from providers.provider_factory import create_provider
 from ui import AppState
 from lib.pr_log import pr_err, pr_warn, pr_notice, pr_info, pr_debug
 from input_coordinator import InputCoordinator
@@ -70,7 +70,7 @@ class DictationApp:
         """Initialize the provider client based on the selected provider."""
         try:
             # Pass audio_source to provider for instruction injection
-            self.provider = BaseProvider(self.config, self.audio_source)
+            self.provider = create_provider(self.config, self.audio_source)
 
             # Provider should never be None now
             if self.provider is None:

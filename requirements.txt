@@ -24,6 +24,8 @@ pyrubberband
 
 # Optional dependencies for specific HuggingFace models
 sentencepiece  # Required for Speech2Text models (facebook/s2t-*)
+bitsandbytes  # Required for quantized models (--model-id huggingface/model@4 or @8)
+accelerate  # Required for device_map with quantized models
 
 # macOS dependencies for keyboard injection
 pyobjc-core>=11.1; sys_platform == "darwin"

@@ -411,5 +411,36 @@ class ConfigManager:
                 pr_err(f"Invalid transcription model format: '{self.transcription_model}'. Expected format: provider/model")
                 return False
 
+        # Validate HuggingFace provider requirements
+        if not self.validate_huggingface_provider():
+            parser.print_help()
+            return False
+
         return True
+
+    def validate_huggingface_provider(self) -> bool:
+        """
+        Validate HuggingFace provider requirements.
+
+        HuggingFace text generation models require transcription mode
+        because they cannot process audio directly.
+
+        Returns:
+            True if valid, False if huggingface with non-transcription mode
+        """
+        if not self.model_id or '/' not in self.model_id:
+            return True
+
+        model_provider = self.model_id.split('/', 1)[0].lower()
+        if model_provider != 'huggingface':
+            return True
+
+        if self.audio_source in ['transcribe', 'trans']:
+            return True
+
+        pr_err(
+            f"--model huggingface/... requires --audio-source to be "
+            f"'transcribe' or 'trans', not '{self.audio_source}'"
+        )
+        return False
     

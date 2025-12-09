@@ -10,7 +10,8 @@ Real-time AI-powered dictation application with multiple audio source options an
   - Raw microphone (default): Direct audio to LLM
   - Transcription: Audio → transcription model → text → LLM
 - **LLM Providers**
-  - Groq, Google Gemini, OpenAI, Anthropic, OpenRouter
+  - Cloud: Groq, Google Gemini, OpenAI, Anthropic, OpenRouter
+  - Local: HuggingFace text generation models (requires transcription mode)
 - **Transcription Models** (when using transcription audio source)
   - HuggingFace Wav2Vec2 (local, phoneme-based)
   - OpenAI Whisper (cloud API)
@@ -72,7 +73,7 @@ pip install -r requirements.txt
 
 Both `--model` and `--transcription-model` use format: `provider/identifier`
 
-**LLM providers**: `groq`, `gemini`, `openai`, `anthropic`, `openrouter`
+**LLM providers**: `groq`, `gemini`, `openai`, `anthropic`, `openrouter`, `huggingface`
 **Transcription providers**: `huggingface`, `openai`, `groq`, `vosk`
 
 **Routing syntax**: `provider/model@routing_provider` (provider-specific feature)
@@ -103,8 +104,11 @@ python dictate.py
 # Raw audio → LLM
 python dictate.py --model groq/llama-3.3-70b-versatile
 
-# Transcription → LLM
+# Transcription → Cloud LLM
 python dictate.py -a transcribe -T openai/whisper-1 --model anthropic/claude-3-5-sonnet-20241022
+
+# Transcription → Local HuggingFace LLM
+python dictate.py -a transcribe -T openai/whisper-1 --model huggingface/Qwen/Qwen2.5-0.5B-Instruct
 ```
 
 ### Signal Control (background mode)
@@ -137,10 +141,32 @@ Two-stage: audio → transcription model → text → LLM → formatted text
 - LLM lacks audio support (Groq)
 - Lower cost (cheap transcription + expensive LLM)
 - Local/offline transcription (VOSK, Wav2Vec2)
+- Fully local processing (HuggingFace transcription + HuggingFace LLM)
 
 **Example:** "their are too errors hear" → transcription → "their are too errors hear" → LLM → "There are two errors here."
 
 LLM corrects: homophones, grammar, punctuation, technical terms
+
+### HuggingFace LLM Models (Local)
+
+Run text generation models locally via HuggingFace Transformers library.
+
+**Requirement:** Must use transcription mode (`-a transcribe`) because HuggingFace text models cannot process audio directly.
+
+**Supported models:**
+- Causal LM: Qwen, Llama, Mistral, Phi, GPT-2
+- Seq2Seq: T5, BART, Flan-T5
+
+**Example:**
+```bash
+python dictate.py -a transcribe -T vosk/models/vosk-model-small-en-us-0.15 \
+  --model huggingface/Qwen/Qwen2.5-0.5B-Instruct
+```
+
+**Notes:**
+- Models downloaded from HuggingFace Hub on first use
+- GPU acceleration used when available
+- No API key required
 
 ### Transcription Models
 

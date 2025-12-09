@@ -9,7 +9,7 @@ import concurrent.futures
 import re
 from colorama import Fore, Style, init
 from config_manager import ConfigManager
-from providers.base_provider import BaseProvider
+from providers.litellm_provider import LiteLLMProvider
 
 init(autoreset=True)
 
@@ -45,7 +45,7 @@ def test_model(model_id: str, debug_level: int = 0) -> dict:
         config.audio_source = 'raw'
         config.mode = 'dictate'
 
-        provider = BaseProvider(config, MockAudioProcessor())
+        provider = LiteLLMProvider(config, MockAudioProcessor())
 
         success = provider.initialize()
 

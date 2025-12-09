@@ -12,7 +12,7 @@ class TestCostIntegration(unittest.TestCase):
 
     def test_cost_output_with_streaming_context(self):
         """Test cost output after streaming context exits."""
-        from providers.base_provider import BaseProvider
+        from providers.litellm_provider import LiteLLMProvider
         from lib.pr_log import get_streaming_handler
 
         mock_config = Mock()
@@ -23,7 +23,7 @@ class TestCostIntegration(unittest.TestCase):
         mock_config.sample_rate = 16000
 
         mock_audio_processor = Mock()
-        provider = BaseProvider(mock_config, mock_audio_processor)
+        provider = LiteLLMProvider(mock_config, mock_audio_processor)
 
         mock_usage = Mock()
         mock_usage.prompt_tokens = 100

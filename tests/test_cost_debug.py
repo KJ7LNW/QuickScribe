@@ -27,7 +27,7 @@ class TestCostOutput(unittest.TestCase):
 
     def test_cost_display_gating_disabled(self):
         """Test that _display_cache_stats returns early when debug_enabled=False."""
-        from providers.base_provider import BaseProvider
+        from providers.litellm_provider import LiteLLMProvider
 
         mock_config = Mock()
         mock_config.debug_enabled = False
@@ -37,7 +37,7 @@ class TestCostOutput(unittest.TestCase):
         mock_config.sample_rate = 16000
 
         mock_audio_processor = Mock()
-        provider = BaseProvider(mock_config, mock_audio_processor)
+        provider = LiteLLMProvider(mock_config, mock_audio_processor)
 
         mock_usage = Mock()
         mock_usage.prompt_tokens = 100
@@ -58,7 +58,7 @@ class TestCostOutput(unittest.TestCase):
 
     def test_cost_display_gating_enabled(self):
         """Test that _display_cache_stats shows output when debug_enabled=True."""
-        from providers.base_provider import BaseProvider
+        from providers.litellm_provider import LiteLLMProvider
 
         mock_config = Mock()
         mock_config.debug_enabled = True
@@ -68,7 +68,7 @@ class TestCostOutput(unittest.TestCase):
         mock_config.sample_rate = 16000
 
         mock_audio_processor = Mock()
-        provider = BaseProvider(mock_config, mock_audio_processor)
+        provider = LiteLLMProvider(mock_config, mock_audio_processor)
 
         mock_usage = Mock()
         mock_usage.prompt_tokens = 100

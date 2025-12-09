@@ -2,7 +2,7 @@
 Test provider mapper integration.
 """
 from providers.mapper_factory import MapperFactory
-from providers.base_provider import BaseProvider
+from providers.litellm_provider import LiteLLMProvider
 from config_manager import ConfigManager
 
 
@@ -60,7 +60,7 @@ def test_base_provider_integration():
     class MockAudio:
         pass
 
-    provider = BaseProvider(config, MockAudio())
+    provider = LiteLLMProvider(config, MockAudio())
 
     assert provider.provider == 'openrouter'
     assert provider.mapper is not None
@@ -80,7 +80,7 @@ def test_routing_provider_extraction():
     class MockAudio:
         pass
 
-    provider = BaseProvider(config, MockAudio())
+    provider = LiteLLMProvider(config, MockAudio())
 
     assert provider.provider == 'openrouter'
     assert provider.mapper is not None

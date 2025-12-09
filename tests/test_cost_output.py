@@ -40,7 +40,7 @@ def test_cost_display_gating():
     mock_audio_processor = Mock()
 
     # Import after mocking to avoid initialization issues
-    from providers.base_provider import BaseProvider
+    from providers.litellm_provider import LiteLLMProvider
 
     # Test with debug_enabled=False
     mock_config.debug_enabled = False
@@ -49,7 +49,7 @@ def test_cost_display_gating():
     mock_config.litellm_debug = False
     mock_config.sample_rate = 16000
 
-    provider = BaseProvider(mock_config, mock_audio_processor)
+    provider = LiteLLMProvider(mock_config, mock_audio_processor)
 
     # Mock usage data
     mock_usage = Mock()
@@ -75,7 +75,7 @@ def test_cost_display_gating():
 
     # Test with debug_enabled=True
     mock_config.debug_enabled = True
-    provider2 = BaseProvider(mock_config, mock_audio_processor)
+    provider2 = LiteLLMProvider(mock_config, mock_audio_processor)
 
     old_stderr = sys.stderr
     sys.stderr = io.StringIO()
