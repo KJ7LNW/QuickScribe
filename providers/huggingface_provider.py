@@ -43,8 +43,17 @@ class HuggingFaceProvider(AbstractProvider):
 
             pr_info(f"Loading HuggingFace model: {model_path}")
 
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+            if not torch.cuda.is_available():
+                pr_err("HuggingFace provider requires CUDA GPU")
+                pr_err("CPU inference would use excessive RAM (>20GB for small models)")
+                pr_err("Alternatives:")
+                pr_err("  - Use GPU-enabled system")
+                pr_err("  - Use Ollama with GGUF models: ollama/qwen2.5:0.5b-instruct-q4_K_M")
+                pr_err("  - Use cloud API providers: groq, anthropic, openai")
+                return False
+
+            self.device = "cuda"
+            self.torch_dtype = torch.float16
 
             quantization_config = None
             device_map = None
