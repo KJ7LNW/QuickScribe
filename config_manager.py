@@ -47,6 +47,12 @@ class ConfigManager:
         # Microphone release delay
         self.mic_release_delay = 350  # milliseconds
 
+        # Connection timeout for streaming responses
+        self.connection_timeout = 10.0  # seconds
+
+        # Retry configuration
+        self.retry_count = 3
+
         # Audio validation thresholds
         self.min_recording_duration = 0.7  # seconds
         self.audio_amplitude_threshold = 0.03  # 3% of int16 range
@@ -148,6 +154,18 @@ class ConfigManager:
             "--no-trigger-key",
             action="store_true",
             help="Disable keyboard trigger; use POSIX signals (SIGUSR1/SIGUSR2/SIGHUP) instead."
+        )
+        parser.add_argument(
+            "--connection-timeout",
+            type=float,
+            default=self.connection_timeout,
+            help="Timeout in seconds before retrying streaming connection (default: 10.0)."
+        )
+        parser.add_argument(
+            "--retry-count",
+            type=int,
+            default=3,
+            help="Number of retry attempts for timeout failures (default: 3)."
         )
         parser.add_argument(
             "--sigusr1",
@@ -350,6 +368,10 @@ class ConfigManager:
 
         # Microphone release delay
         self.mic_release_delay = getattr(args, 'mic_release_delay', 350)
+
+        # Retry and timeout configuration
+        self.connection_timeout = getattr(args, 'connection_timeout', 10.0)
+        self.retry_count = getattr(args, 'retry_count', 3)
 
     def parse_configuration(self):
         """Parse configuration from command line arguments or interactive mode."""

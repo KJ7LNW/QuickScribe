@@ -24,6 +24,7 @@ class ProcessingSession:
         self.chunk_queue: queue.Queue = queue.Queue()
         self.chunks_complete: threading.Event = threading.Event()
         self.error_message: Optional[str] = None
+        self.retry_count: int = 0
 
     @property
     def has_error(self) -> bool:

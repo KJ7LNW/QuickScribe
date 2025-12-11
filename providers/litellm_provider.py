@@ -402,7 +402,8 @@ class LiteLLMProvider(AbstractProvider):
             "messages": messages,
             "stream": True,
             "stream_options": {"include_usage": True},
-            "temperature": self.config.temperature
+            "temperature": self.config.temperature,
+            "timeout": self.config.connection_timeout
         }
 
         if self.route:

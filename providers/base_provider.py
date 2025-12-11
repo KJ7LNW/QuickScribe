@@ -24,6 +24,11 @@ class TerminateStream(Exception):
     pass
 
 
+class StreamTimeout(Exception):
+    """Signal timeout waiting for streaming response chunks."""
+    pass
+
+
 class AbstractProvider(ABC):
     """
     Abstract base provider for LLM backends.
