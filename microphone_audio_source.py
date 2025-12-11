@@ -32,6 +32,7 @@ class MicrophoneAudioSource(AudioSource):
         self.recording_stream = None
         self.chunk_handler = chunk_handler or DefaultAudioChunkHandler()
         self.recording_start_time = None
+        self.stream_epoch = 0
 
     def _get_max_value_for_dtype(self, dtype: np.dtype) -> float:
         """
@@ -66,37 +67,38 @@ class MicrophoneAudioSource(AudioSource):
             pr_err(f"Error initializing microphone audio source: {e}")
             return False
 
-    def audio_callback(self, indata, frames, time_info, status):
-        """This is called (from a separate thread) for each audio block."""
-        if status:
-            if status.input_overflow:
-                pr_warn("Audio buffer overflow")
-            else:
-                pr_warn(f"Audio callback status: {status}")
-
-        if self._is_recording:
-            chunk_copy = indata.copy()
-            # Allow handler to intercept chunk
-            self.chunk_handler.on_chunk(chunk_copy, time_info.currentTime if time_info else 0.0)
-            # Store for final result
-            self.audio_queue.put(chunk_copy)
-
     def start_recording(self) -> None:
         """Starts the audio recording stream."""
         if self._is_recording:
             return
 
         pr_info("Recording started...")
+        self.stream_epoch += 1
+        recording_epoch = self.stream_epoch
         self._is_recording = True
         self.recording_start_time = time.time()
         self.audio_queue.queue.clear()
+
+        # Epoch-bound callback: binds recording_epoch at stream creation
+        def epoch_bound_callback(indata, frames, time_info, status):
+            """Called from separate thread for each audio block."""
+            if status:
+                if status.input_overflow:
+                    pr_warn("Audio buffer overflow")
+                else:
+                    pr_warn(f"Audio callback status: {status}")
+
+            if self._is_recording:
+                chunk_copy = indata.copy()
+                self.chunk_handler.on_chunk(chunk_copy, time_info.currentTime if time_info else 0.0)
+                self.audio_queue.put((recording_epoch, chunk_copy))
 
         try:
             self.recording_stream = sd.InputStream(
                 samplerate=self.config.sample_rate,
                 channels=self.config.channels,
                 dtype=self.dtype,
-                callback=self.audio_callback
+                callback=epoch_bound_callback
             )
             self.recording_stream.start()
         except sd.PortAudioError as e:
@@ -119,6 +121,7 @@ class MicrophoneAudioSource(AudioSource):
             )
 
         pr_info("Stopped. Processing...")
+        recording_epoch = self.stream_epoch
         self._is_recording = False
 
         if self.recording_stream:
@@ -132,10 +135,15 @@ class MicrophoneAudioSource(AudioSource):
             finally:
                 self.recording_stream = None
 
+        # Filter chunks by epoch: accept only chunks from this recording
         audio_data = []
         while not self.audio_queue.empty():
             try:
-                audio_data.append(self.audio_queue.get_nowait())
+                epoch, chunk = self.audio_queue.get_nowait()
+                if epoch == recording_epoch:
+                    audio_data.append(chunk)
+                else:
+                    pr_debug(f"Discarded stale chunk from epoch {epoch}, expected {recording_epoch}")
             except queue.Empty:
                 break
 

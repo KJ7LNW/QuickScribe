@@ -4,7 +4,7 @@ Processes transcription chunks and sends keyboard output.
 """
 import queue
 from processing_session import ProcessingSession
-from lib.pr_log import pr_err, pr_info
+from lib.pr_log import pr_err, pr_info, pr_debug
 
 
 def process_session_output(app, session: ProcessingSession):
@@ -22,8 +22,16 @@ def process_session_output(app, session: ProcessingSession):
     app.transcription_service.reset_streaming_state()
 
     notification_shown = False
+    current_retry_count = session.retry_count
+
     try:
         while not session.chunks_complete.is_set() or not session.chunk_queue.empty():
+            if session.retry_count > current_retry_count:
+                pr_debug("Retry detected, discarding partial state")
+                app.transcription_service.reset_streaming_state()
+                current_retry_count = session.retry_count
+                continue
+
             try:
                 chunk = session.chunk_queue.get(timeout=0.1)
 
