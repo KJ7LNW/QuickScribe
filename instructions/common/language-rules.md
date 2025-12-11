@@ -24,6 +24,11 @@ Example with multiple stage changes:
 
 - `<int>` Resolve ambiguities
 	- Apply domain knowledge
+	- Resolve technical homophones when grammatical structure invalid: test whether technical domain homophone provides required word class for valid structure
+		- Pattern: transcribed term produces invalid grammatical structure (e.g., transitive verb without object, determiner without noun)
+		- Test: technical homophone exists providing word class that satisfies grammatical requirements
+		- Example: "get moves" invalid (verb "get" requires object); "git" (noun) satisfies structure → "git moves" valid compound noun phrase
+		- Apply substitution when homophone + context produces valid technical construction
 	- Remove disfluencies/non-speech
 	- Delete self-repairs
 	- Refine precision
