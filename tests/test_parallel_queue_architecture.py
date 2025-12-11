@@ -45,11 +45,15 @@ class MockConfig:
         self.model_id = "mock-model"
         self.trigger_key_name = None
         self.reset_state_each_response = False
+        self.chunk_timeout = 3.0
+        self.http_timeout = 10.0
+        self.retry_count = 3
 
 
 class MockProvider:
     """Mock provider with controllable streaming behavior."""
     def __init__(self):
+        self.config = MockConfig()
         self.transcribe_calls = []
         self.streaming_chunks = []
         self.invocation_started = threading.Event()

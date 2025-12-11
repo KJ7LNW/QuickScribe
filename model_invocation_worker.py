@@ -3,6 +3,8 @@ Thread worker for model invocation.
 Runs in parallel to invoke transcription models asynchronously.
 """
 import queue
+import threading
+import time
 from typing import Optional
 from processing_session import ProcessingSession
 from audio_source import AudioResult, AudioDataResult, AudioTextResult
@@ -46,33 +48,99 @@ def _rollback_session_state(session: ProcessingSession):
     session.retry_count += 1
 
 
+def _transcription_worker(provider, context, audio_data, text_data, activity_queue):
+    """
+    Worker thread that executes provider.transcribe() and signals activity.
+
+    Runs in daemon thread spawned per retry attempt.
+    Writes chunks to activity_queue for monitoring thread to consume.
+    """
+    def streaming_callback(chunk_text):
+        activity_queue.put(chunk_text)
+
+    try:
+        provider.transcribe(
+            context,
+            audio_data=audio_data,
+            text_data=text_data,
+            streaming_callback=streaming_callback,
+            final_callback=None
+        )
+        activity_queue.put(('done', None))
+
+    except Exception as e:
+        activity_queue.put(('error', e))
+
+
 def _invoke_model(provider, session: ProcessingSession, audio_data=None, text_data=None):
-    """Invoke model with streaming callback that collects chunks to session queue."""
+    """
+    Invoke model with thread-based monitoring for select-timeout capability.
+
+    Spawns worker thread per attempt and monitors activity_queue with timeout.
+    """
     max_retries = provider.config.retry_count
+    timeout_threshold = provider.config.chunk_timeout
+    transcription_succeeded = False
 
     for attempt in range(1, max_retries + 1):
-        try:
-            if attempt > 1:
-                _rollback_session_state(session)
-                pr_debug(f"Retry attempt {attempt}/{max_retries} for session")
-
-            def streaming_callback(chunk_text):
-                session.chunk_queue.put(chunk_text)
-
-            provider.transcribe(
-                session.context,
-                audio_data=audio_data,
-                text_data=text_data,
-                streaming_callback=streaming_callback,
-                final_callback=None
-            )
-
+        if transcription_succeeded:
             break
 
+        if attempt > 1:
+            _rollback_session_state(session)
+            pr_debug(f"Retry attempt {attempt}/{max_retries} for session")
+
+        # Worker spawning
+        activity_queue = queue.Queue()
+
+        worker = threading.Thread(
+            target=_transcription_worker,
+            args=(provider, session.context, audio_data, text_data, activity_queue),
+            daemon=True
+        )
+        worker.start()
+
+        # Monitoring loop with select timeout
+        try:
+            last_activity = time.time()
+            worker_completed = False
+
+            while not worker_completed:
+                remaining = timeout_threshold - (time.time() - last_activity)
+                if remaining <= 0:
+                    elapsed = time.time() - last_activity
+                    raise TimeoutError(f"No chunk for {elapsed:.1f}s")
+
+                try:
+                    item = activity_queue.get(timeout=remaining)
+                except queue.Empty:
+                    elapsed = time.time() - last_activity
+                    raise TimeoutError(f"No chunk for {elapsed:.1f}s")
+
+                if isinstance(item, tuple):
+                    if item[0] == 'done':
+                        pr_debug("Transcription worker completed")
+                        worker_completed = True
+                    elif item[0] == 'error':
+                        raise item[1]
+                    else:
+                        raise RuntimeError(f"Unknown activity_queue signal: {item}")
+                else:
+                    session.chunk_queue.put(item)
+                    last_activity = time.time()
+                    pr_debug("Chunk received, timeout timer reset")
+
+            transcription_succeeded = True
+
+        except TimeoutError as e:
+            pr_warn(f"Timeout on attempt {attempt}/{max_retries}: {e}")
+            if attempt >= max_retries:
+                session.error_message = f"Timeout after {max_retries} attempts"
+                pr_err(f"Max retries ({max_retries}) exhausted")
+
         except litellm_exceptions.InternalServerError as e:
-            error_msg = "Internal error encountered"
-            session.error_message = error_msg
-            pr_err(f"Dictation API error: {error_msg}")
+            session.error_message = "Internal error encountered"
+            pr_err(f"Dictation API error: {session.error_message}")
             break
 
         except Exception as e:
@@ -84,11 +152,9 @@ def _invoke_model(provider, session: ProcessingSession, audio_data=None, text_da
 
             if is_timeout and attempt < max_retries:
                 pr_warn(f"Timeout on attempt {attempt}/{max_retries}: {e}")
-                continue
             else:
-                error_msg = str(e)
-                session.error_message = error_msg
-                pr_err(f"Model invocation error: {error_msg}")
+                session.error_message = str(e)
+                pr_err(f"Model invocation error: {session.error_message}")
                 break
 
     session.chunks_complete.set()

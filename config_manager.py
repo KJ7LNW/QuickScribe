@@ -47,8 +47,9 @@ class ConfigManager:
         # Microphone release delay
         self.mic_release_delay = 350  # milliseconds
 
-        # Connection timeout for streaming responses
-        self.connection_timeout = 10.0  # seconds
+        # Timeout configuration for streaming responses
+        self.chunk_timeout = 5.0   # Monitoring thread select timeout (seconds)
+        self.http_timeout = 10.0   # HTTP client socket read timeout (seconds)
 
         # Retry configuration
         self.retry_count = 3
@@ -156,10 +157,16 @@ class ConfigManager:
             help="Disable keyboard trigger; use POSIX signals (SIGUSR1/SIGUSR2/SIGHUP) instead."
         )
         parser.add_argument(
-            "--connection-timeout",
+            "--chunk-timeout",
             type=float,
-            default=self.connection_timeout,
-            help="Timeout in seconds before retrying streaming connection (default: 10.0)."
+            default=self.chunk_timeout,
+            help="Timeout in seconds for monitoring streaming chunks (default: 5.0)."
+        )
+        parser.add_argument(
+            "--http-timeout",
+            type=float,
+            default=self.http_timeout,
+            help="Timeout in seconds for HTTP socket reads (default: 10.0)."
         )
         parser.add_argument(
             "--retry-count",
@@ -370,8 +377,9 @@ class ConfigManager:
         self.mic_release_delay = getattr(args, 'mic_release_delay', 350)
 
         # Retry and timeout configuration
-        self.connection_timeout = getattr(args, 'connection_timeout', 10.0)
-        self.retry_count = getattr(args, 'retry_count', 3)
+        self.chunk_timeout = args.chunk_timeout
+        self.http_timeout = args.http_timeout
+        self.retry_count = args.retry_count
 
     def parse_configuration(self):
         """Parse configuration from command line arguments or interactive mode."""

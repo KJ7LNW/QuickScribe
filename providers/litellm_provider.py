@@ -403,7 +403,7 @@ class LiteLLMProvider(AbstractProvider):
             "stream": True,
             "stream_options": {"include_usage": True},
             "temperature": self.config.temperature,
-            "timeout": self.config.connection_timeout
+            "timeout": self.config.http_timeout
         }
 
         if self.route:

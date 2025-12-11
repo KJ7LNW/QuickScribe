@@ -30,6 +30,7 @@ class MockProvider:
         self.temperature = 0.7
         self.max_tokens = 1000
         self.top_p = 1.0
+        self.config = MockConfig()
 
     def initialize(self):
         return self.initialized
@@ -68,6 +69,9 @@ class MockConfig:
         self.max_tokens = 1000
         self.top_p = 1.0
         self.use_xdotool = False
+        self.chunk_timeout = 3.0
+        self.http_timeout = 10.0
+        self.retry_count = 3
         self.audio_source = "wav2vec"
 
 

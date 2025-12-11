@@ -37,7 +37,9 @@ from litellm import exceptions as litellm_exceptions
 class MockConfig:
     """Mock configuration for testing."""
     def __init__(self):
-        self.connection_timeout = 3.0
+        self.chunk_timeout = 3.0
+        self.http_timeout = 10.0
+        self.retry_count = 3
 
 
 class TestRetryLogic(unittest.TestCase):
@@ -76,7 +78,7 @@ class TestRetryLogic(unittest.TestCase):
                           streaming_callback=None, final_callback=None):
             attempt_count[0] += 1
             if attempt_count[0] == 1:
-                time.sleep(0.2)
+                time.sleep(4.0)
             else:
                 if streaming_callback:
                     streaming_callback("success on retry")
@@ -88,26 +90,10 @@ class TestRetryLogic(unittest.TestCase):
         result = AudioTextResult("test", 16000)
         session = ProcessingSession(recording, context, result)
 
-        with patch('lib.connection_monitor.ConnectionMonitor') as MockMonitor:
-            monitor_instance = Mock()
-            monitor_instance.first_chunk_received = threading.Event()
-            monitor_instance.timeout_occurred = False
-            MockMonitor.return_value = monitor_instance
-
-            def mark_first_chunk_side_effect():
-                monitor_instance.first_chunk_received.set()
-
-            monitor_instance.mark_first_chunk = Mock(side_effect=mark_first_chunk_side_effect)
-            monitor_instance.stop = Mock()
-
-            if attempt_count[0] == 0:
-                monitor_instance.timeout_occurred = True
-            else:
-                monitor_instance.first_chunk_received.set()
-
-            _invoke_model(mock_provider, session, text_data="test")
+        _invoke_model(mock_provider, session, text_data="test")
 
         self.assertTrue(session.chunks_complete.is_set())
+        self.assertGreaterEqual(attempt_count[0], 2)
 
     def test_max_retries_exhausted(self):
         """Test that max retries exhausted sets error message."""
