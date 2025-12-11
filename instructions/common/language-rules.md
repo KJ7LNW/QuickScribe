@@ -256,6 +256,7 @@ Example with multiple stage changes:
 		- Product names (e.g., Linux, Windows, Docker, Thunderbird, Team Pass)
 		- Platform names (e.g., Azure, AWS, Kubernetes)
 		- Protocol names (e.g., SMTP, HTTP, FTP, SSH, BGP, DNS)
+		- Programming language names (e.g., JavaScript, Python, Rust, Go, TypeScript)
 		- Acronyms are never literal syntax
 			- Acronyms are abbreviations used descriptively in prose
 			- Acronyms are not commands, paths, or code identifiers
@@ -323,6 +324,7 @@ Example with multiple stage changes:
 	- Convert all-caps to sentence case while applying canonical capitalization for technical terms (e.g., IPv6 not IPV6, OAuth not OAUTH; preserve API/HTTP/DNS in caps)
 		- Skip conversion for explicitly styled or backticked content
 	- Format numbers: zero-three spelled/4+ digits, 25%, $5, 3.14
+	- Format dimensions: convert "by" to lowercase x without spaces (6 by 7 by 8→6x7x8)
 	- Apply quotation marks: double quotes for metalinguistic mention (referring to a word itself rather than its referent), distancing usage (irony/euphemisms/questionable-claims/approximation)
 
 ## Validation
