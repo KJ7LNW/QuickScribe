@@ -441,36 +441,65 @@ class ConfigManager:
                 pr_err(f"Invalid transcription model format: '{self.transcription_model}'. Expected format: provider/model")
                 return False
 
-        # Validate HuggingFace provider requirements
-        if not self.validate_huggingface_provider():
+        # Validate local provider requirements
+        if not self.validate_local_providers():
             parser.print_help()
             return False
 
         return True
 
-    def validate_huggingface_provider(self) -> bool:
+    def validate_local_providers(self) -> bool:
         """
-        Validate HuggingFace provider requirements.
+        Validate local provider requirements.
 
-        HuggingFace text generation models require transcription mode
-        because they cannot process audio directly.
+        Local text generation providers (huggingface, llamacpp, gguf) require
+        transcription mode because they cannot process audio directly.
+        llamacpp and gguf also require route specification for GGUF filename.
 
         Returns:
-            True if valid, False if huggingface with non-transcription mode
+            True if valid, False if validation fails
         """
         if not self.model_id or '/' not in self.model_id:
             return True
 
         model_provider = self.model_id.split('/', 1)[0].lower()
-        if model_provider != 'huggingface':
+
+        # Validate HuggingFace provider
+        if model_provider == 'huggingface':
+            if self.audio_source in ['transcribe', 'trans']:
+                return True
+
+            pr_err(
+                f"--model huggingface/... requires --audio-source to be "
+                f"'transcribe' or 'trans', not '{self.audio_source}'"
+            )
+            return False
+
+        # Validate llamacpp/gguf providers
+        if model_provider in ['llamacpp', 'gguf']:
+
+            # Audio source validation
+            if self.audio_source not in ['transcribe', 'trans']:
+                pr_err(
+                    f"--model {model_provider}/... requires --audio-source to be "
+                    f"'transcribe' or 'trans', not '{self.audio_source}'"
+                )
+                return False
+
+            # Route presence validation
+            if '@' not in self.model_id:
+                pr_err(f"--model {model_provider}/... requires GGUF filename after @ delimiter")
+                pr_err(f"Example: {model_provider}/bartowski/Qwen2.5-0.5B-Instruct-GGUF@Qwen2.5-0.5B-Instruct-Q4_K_M.gguf")
+                return False
+
+            # Route format validation
+            route = self.model_id.split('@', 1)[1]
+            if not route.endswith('.gguf'):
+                pr_err(f"Invalid GGUF filename: {route}")
+                pr_err("Route must end with .gguf extension")
+                return False
+
             return True
 
-        if self.audio_source in ['transcribe', 'trans']:
-            return True
-
-        pr_err(
-            f"--model huggingface/... requires --audio-source to be "
-            f"'transcribe' or 'trans', not '{self.audio_source}'"
-        )
-        return False
+        return True
     

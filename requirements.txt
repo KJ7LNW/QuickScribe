@@ -27,6 +27,9 @@ sentencepiece  # Required for Speech2Text models (facebook/s2t-*)
 bitsandbytes  # Required for quantized models (--model-id huggingface/model@4 or @8)
 accelerate  # Required for device_map with quantized models
 
+# llama.cpp dependencies (optional - for local GGUF models)
+llama-cpp-python  # Required for llamacpp/gguf providers (--model llamacpp/repo@file.gguf)
+
 # macOS dependencies for keyboard injection
 pyobjc-core>=11.1; sys_platform == "darwin"
 pyobjc-framework-Quartz>=11.1; sys_platform == "darwin"
@@ -47,5 +50,8 @@ pywin32; sys_platform == "win32"
 #   - Supports CTC models: Wav2Vec2, HuBERT (phoneme/text output)
 #   - Supports Seq2Seq models: Whisper, Speech2Text (text output)
 # - SentencePiece only needed for Speech2Text models (facebook/s2t-*)
+# - llama-cpp-python for GGUF models (--model llamacpp/... or gguf/...)
+#   - Install: CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install llama-cpp-python
+#   - For GPU support: CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
 # - PyTorch installation varies by platform, see: https://pytorch.org/get-started/
 # - For CPU-only PyTorch: pip install torch --index-url https://download.pytorch.org/whl/cpu
