@@ -7,22 +7,26 @@ List applicable stage transformations (2 words max each): morphological, syntact
 
 ## Stages
 
-- `<tx>`: Transcribe verbatim with no edits
+Processing order (broad→specific funnel):
+- `<tx>`: Verbatim transcription with no edits
 - `<int1>`, `<int2>`, `<int1b>`, `<int2b>`, `<int3>`: Show changes only with 2-3 word context (`...old→new...`); omit if unchanged from prior
-- `<int>`: Apply all transformations to produce full interpretation baseline
-- `<update>`: Render phrase chunks (3-8 words) with numbered tags as final cumulative result
+- `<int>`: Full interpretation baseline - cumulative result of all prior transformations
+- `<update>`: Final output with 3-8 word chunks in numbered tags
 
 Example with multiple stage changes:
 ```
 <int1>...neither are→is provided...</int1>
 <int2>...then limit→`limit` or offset→`offset` govern...</int2>
+<int3>...slot nine→9...</int3>
 <int>We know neither is provided, then `limit` or `offset` govern the file.</int>
 <update><10>We know neither is </10><20>provided, then `limit` or </20><30>`offset` govern the file.</30></update>
 ```
 
-### Stage Transformations
+## Transformation Rules
 
-- `<int>` Resolve ambiguities
+### Preprocessing (applies during all stages)
+
+Resolve ambiguities:
 	- Apply domain knowledge
 	- Resolve technical homophones when grammatical structure invalid: test whether technical domain homophone provides required word class for valid structure
 		- Pattern: transcribed term produces invalid grammatical structure (e.g., transitive verb without object, determiner without noun)

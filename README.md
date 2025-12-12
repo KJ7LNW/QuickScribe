@@ -11,7 +11,8 @@ Real-time AI-powered dictation application with multiple audio source options an
   - Transcription: Audio → transcription model → text → LLM
 - **LLM Providers**
   - Cloud: Groq, Google Gemini, OpenAI, Anthropic, OpenRouter
-  - Local: HuggingFace text generation models (requires transcription mode)
+  - Local: HuggingFace text generation models, llama.cpp GGUF models (requires transcription mode)
+  - None: Passthrough mode (injects raw transcription without LLM processing)
 - **Transcription Models** (when using transcription audio source)
   - HuggingFace Wav2Vec2 (local, phoneme-based)
   - OpenAI Whisper (cloud API)
@@ -73,8 +74,18 @@ pip install -r requirements.txt
 
 Both `--model` and `--transcription-model` use format: `provider/identifier`
 
-**LLM providers**: `groq`, `gemini`, `openai`, `anthropic`, `openrouter`, `huggingface`
+**LLM providers**: `groq`, `gemini`, `openai`, `anthropic`, `openrouter`, `huggingface`, `llamacpp`, `gguf`, `none`
 **Transcription providers**: `huggingface`, `openai`, `groq`, `vosk`
+
+**LlamaCpp/GGUF provider**: `gguf` is an alias for `llamacpp`
+
+**None provider**: Bypasses LLM processing and injects raw transcription output directly. Useful for:
+- Phoneme passthrough from Wav2Vec2
+- Direct text injection from Whisper/VOSK without formatting
+- Testing transcription models without API costs
+- Low-latency dictation (transcription only, no LLM processing)
+
+The none provider extracts the first `<tx>` tag from transcription output and injects it verbatim. Works with any `-T` transcription model.
 
 **Routing syntax**: `provider/model@routing_provider` (provider-specific feature)
 - Example: `openrouter/google/gemini-2.5-flash@vertex`
@@ -106,6 +117,12 @@ python dictate.py --model groq/llama-3.3-70b-versatile
 
 # Transcription → Cloud LLM
 python dictate.py -a transcribe -T openai/whisper-1 --model anthropic/claude-3-5-sonnet-20241022
+
+# Transcription → Direct injection (no LLM)
+python dictate.py -a transcribe -T vosk/model --model none
+
+# Transcription → Local GGUF LLM
+python dictate.py -a transcribe -T vosk/vosk-model-small-en-us-0.15 --model gguf/bartowski/Qwen2.5-0.5B-Instruct-GGUF@Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
 
 # Transcription → Local HuggingFace LLM
 python dictate.py -a transcribe -T openai/whisper-1 --model huggingface/Qwen/Qwen2.5-0.5B-Instruct
@@ -147,26 +164,86 @@ Two-stage: audio → transcription model → text → LLM → formatted text
 
 LLM corrects: homophones, grammar, punctuation, technical terms
 
-### HuggingFace LLM Models (Local)
+### LlamaCpp GGUF Models (Local)
 
-Run text generation models locally via HuggingFace Transformers library.
+Run quantized GGUF models locally via llama.cpp bindings.
 
-**Requirement:** Must use transcription mode (`-a transcribe`) because HuggingFace text models cannot process audio directly.
+**Requirement:** Must use transcription mode (`-a transcribe`) because GGUF text models cannot process audio directly.
 
-**Supported models:**
-- Causal LM: Qwen, Llama, Mistral, Phi, GPT-2
-- Seq2Seq: T5, BART, Flan-T5
+**Format:** `llamacpp/repo/model@filename.gguf` or `gguf/repo/model@filename.gguf`
 
-**Example:**
+**Syntax:**
 ```bash
-python dictate.py -a transcribe -T vosk/models/vosk-model-small-en-us-0.15 \
-  --model huggingface/Qwen/Qwen2.5-0.5B-Instruct
+# Using llamacpp prefix
+--model llamacpp/bartowski/Qwen2.5-0.5B-Instruct-GGUF@Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+
+# Using gguf alias
+--model gguf/unsloth/Qwen3-4B-GGUF@Qwen3-4B-Q4_K_M.gguf
+```
+
+**Examples:**
+```bash
+# Small model with VOSK transcription
+python dictate.py -a transcribe -T vosk/vosk-model-small-en-us-0.15 \
+  --model gguf/bartowski/Qwen2.5-0.5B-Instruct-GGUF@Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+
+# Larger model with Whisper transcription
+python dictate.py -a transcribe -T openai/whisper-1 \
+  --model llamacpp/unsloth/Qwen3-4B-GGUF@Qwen3-4B-Q4_K_M.gguf
 ```
 
 **Notes:**
 - Models downloaded from HuggingFace Hub on first use
-- GPU acceleration used when available
+- Quantization formats: Q4_K_M, Q5_K_M, Q6_K, Q8_0
+- CPU and GPU inference supported
 - No API key required
+- Install: `pip install llama-cpp-python`
+- GPU support: `CMAKE_ARGS='-DLLAMA_CUDA=on' pip install llama-cpp-python`
+
+### HuggingFace LLM Models (Local)
+
+Run text generation models locally via HuggingFace Transformers library.
+
+**Requirements:**
+- Must use transcription mode (`-a transcribe`) because HuggingFace text models cannot process audio directly
+- CUDA GPU required (rejects CPU-only systems to prevent excessive RAM usage)
+- Instruction-tuned models only (models with chat templates)
+
+**Format:** `huggingface/repo/model` or `huggingface/repo/model@bits`
+
+**Quantization options:**
+- `@16` - Float16 (default, ~1-4GB VRAM)
+- `@8` - 8-bit quantization (~0.5-2GB VRAM, requires bitsandbytes)
+- `@4` - 4-bit quantization (~0.3-1GB VRAM, requires bitsandbytes)
+
+**Supported architectures:**
+- Causal LM: Qwen, Llama, Mistral, Phi, GPT-2
+- Seq2Seq: T5, BART, Flan-T5
+
+**Examples:**
+```bash
+# Float16 (default)
+python dictate.py -a transcribe -T vosk/vosk-model-small-en-us-0.15 \
+  --model huggingface/Qwen/Qwen2.5-0.5B-Instruct
+
+# 4-bit quantization (lowest VRAM)
+python dictate.py -a transcribe -T openai/whisper-1 \
+  --model huggingface/Qwen/Qwen2.5-0.5B-Instruct@4
+
+# 8-bit quantization
+python dictate.py -a transcribe -T vosk/vosk-model-small-en-us-0.15 \
+  --model huggingface/meta-llama/Llama-3.2-1B-Instruct@8
+```
+
+**Notes:**
+- Models downloaded from HuggingFace Hub on first use
+- Runtime quantization via bitsandbytes: `pip install bitsandbytes`
+- Real streaming via TextIteratorStreamer
+- No API key required
+
+**Comparison with LlamaCpp:**
+- HuggingFace: CUDA GPU required, runtime quantization, full model format
+- LlamaCpp: CPU or GPU, pre-quantized GGUF files, broader hardware support
 
 ### Transcription Models
 

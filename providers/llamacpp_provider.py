@@ -71,8 +71,8 @@ class LlamaCppProvider(AbstractProvider):
             pr_info("Initializing llama.cpp model...")
             self.model = Llama(
                 model_path=model_path,
-                n_ctx=0,
-                n_gpu_layers=0,
+                n_ctx=40960,
+                #n_gpu_layers=0,
                 verbose=False
             )
 
