@@ -420,8 +420,8 @@ class ConfigManager:
                 pr_err("Or set QUICKSCRIBE_MODEL environment variable in .env")
                 return False
 
-            # Validate model format
-            if '/' not in self.model_id:
+            # Validate model format (allow 'none' without provider/model format)
+            if '/' not in self.model_id and self.model_id != 'none':
                 parser.print_help()
                 pr_err(f"Model '{self.model_id}' is malformed. Required format: provider/model (e.g., gemini/gemini-2.5-flash)")
                 return False
@@ -459,10 +459,17 @@ class ConfigManager:
         Returns:
             True if valid, False if validation fails
         """
-        if not self.model_id or '/' not in self.model_id:
+        if not self.model_id:
             return True
 
-        model_provider = self.model_id.split('/', 1)[0].lower()
+        # Extract provider for validation
+        if self.model_id == 'none':
+            model_provider = 'none'
+        elif '/' in self.model_id:
+            model_provider = self.model_id.split('/', 1)[0].lower()
+        else:
+            # No provider prefix and not 'none' - skip validation
+            return True
 
         # Validate HuggingFace provider
         if model_provider == 'huggingface':
@@ -497,6 +504,19 @@ class ConfigManager:
             if not route.endswith('.gguf'):
                 pr_err(f"Invalid GGUF filename: {route}")
                 pr_err("Route must end with .gguf extension")
+                return False
+
+            return True
+
+        # Validate none provider
+        if model_provider == 'none':
+            if self.audio_source not in ['transcribe', 'trans']:
+                pr_err(
+                    f"--model none/... requires --audio-source to be "
+                    f"'transcribe' or 'trans', not '{self.audio_source}'"
+                )
+                pr_err("None provider passes through transcription without LLM processing")
+                pr_err("Example: --model none/passthru --audio-source transcribe")
                 return False
 
             return True

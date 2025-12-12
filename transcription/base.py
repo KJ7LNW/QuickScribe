@@ -76,6 +76,26 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
         """
         pass
 
+    def format_output(self, text: str) -> str:
+        """
+        Format transcription output with TX tags.
+
+        Template method for wrapping transcription result.
+        Subclasses may override for custom formatting (e.g., speed attributes).
+
+        Args:
+            text: Transcribed text
+
+        Returns:
+            Formatted text with TX tags
+        """
+        result = ""
+
+        if text:
+            result = f"<tx>{text}</tx>"
+
+        return result
+
     def stop_recording(self) -> AudioResult:
         """Stop recording and return transcribed text result."""
         audio_result = super().stop_recording()
@@ -93,7 +113,7 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
             elapsed_ms = int((self.transcription_end_time - self.transcription_start_time) * 1000)
             pr_info(f"Transcription completed ({elapsed_ms}ms)")
 
-            formatted_text = f"<tx>{transcribed_text}</tx>" if transcribed_text else ""
+            formatted_text = self.format_output(transcribed_text)
 
             return AudioTextResult(
                 transcribed_text=formatted_text,

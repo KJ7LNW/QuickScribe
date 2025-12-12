@@ -6,12 +6,14 @@ Single point of truth for provider selection based on model_id prefix.
 from providers.huggingface_provider import HuggingFaceProvider
 from providers.litellm_provider import LiteLLMProvider
 from providers.llamacpp_provider import LlamaCppProvider
+from providers.none_provider import NoneProvider
 
 
 _PROVIDERS = {
     'huggingface': HuggingFaceProvider,
     'llamacpp': LlamaCppProvider,
     'gguf': LlamaCppProvider,
+    'none': NoneProvider,
 }
 
 

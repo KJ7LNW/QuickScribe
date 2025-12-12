@@ -105,6 +105,21 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
         """Transcribe audio using CTC phoneme recognition."""
         return self._process_audio(audio_data)
 
+    def format_output(self, text: str) -> str:
+        """
+        CTC output already contains TX tags with speed attributes.
+
+        Override base class to return text unchanged since multi-speed
+        results are pre-formatted with <tx speed="N%"> tags.
+
+        Args:
+            text: Pre-formatted text with TX tags
+
+        Returns:
+            Text unchanged
+        """
+        return text
+
     def _process_audio_at_speed(self, audio_data: np.ndarray, speed_factor: float) -> str:
         """Process audio at a specific speed and return raw phonemes."""
         try:
@@ -168,14 +183,14 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
                     if raw_output not in seen_phonemes:
                         seen_phonemes.add(raw_output)
                         speed_pct = int(speed_factor * 100)
-                        results.append(f"  {speed_pct}% speed:\n    {self.processor.output_format}: {raw_output}")
+                        results.append(f'<tx speed="{speed_pct}%">{raw_output}</tx>')
                         pr_info(f"{speed_pct}% speed - {self.processor.output_format}: {raw_output}")
                     else:
                         speed_pct = int(speed_factor * 100)
                         pr_info(f"{speed_pct}% speed - Skipped (duplicate of previous speed)")
 
             if results:
-                return "\n\n".join(results)
+                return "\n".join(results)
             else:
                 return ""
 
