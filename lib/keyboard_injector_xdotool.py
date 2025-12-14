@@ -110,6 +110,7 @@ class XdotoolKeyboardInjector(KeyboardInjector):
         )
         self._modifier_tracker = ModifierStateTracker()
         self._session_window_id: Optional[str] = None
+        self._session_window_activated_event: Optional[threading.Event] = None
 
     def get_trigger_window_id(self) -> Optional[str]:
         """Get active window ID at trigger time using xdotool."""
@@ -134,14 +135,16 @@ class XdotoolKeyboardInjector(KeyboardInjector):
 
     def prepare_for_session(self, session: 'ProcessingSession') -> None:
         """Prepare keyboard injector for processing a specific session."""
-        if hasattr(session, 'recording_session') and hasattr(session.recording_session, 'window_id'):
-            self._session_window_id = session.recording_session.window_id
-            if self.debug_enabled and self._session_window_id is not None:
-                pr_debug(f"Session window ID set to: {self._session_window_id}")
+        self._session_window_id = session.recording_session.window_id
+        if self.debug_enabled and self._session_window_id is not None:
+            pr_debug(f"Session window ID set to: {self._session_window_id}")
+
+        self._session_window_activated_event = session.window_activated
 
     def cleanup_session(self) -> None:
         """Clean up session-specific state after processing completes."""
         self._session_window_id = None
+        self._session_window_activated_event = None
 
     def _get_current_window_id(self) -> Optional[str]:
         """Get current active window ID."""
@@ -216,6 +219,12 @@ class XdotoolKeyboardInjector(KeyboardInjector):
 
             time.sleep(self.WINDOW_ACTIVATION_STABILIZATION_DELAY)
 
+            # Signal session that window is activated and stable for keyboard output
+            if self._session_window_activated_event is not None:
+                self._session_window_activated_event.set()
+                if self.debug_enabled:
+                    pr_debug(f"Window activation event signaled for window {window_id}")
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Window activation failed for window {window_id}: {e}")
 
@@ -227,7 +236,7 @@ class XdotoolKeyboardInjector(KeyboardInjector):
         waiting_logged = False
         current_window = self._get_current_window_id()
         start_time = time.time()
-        max_wait = 2.0
+        max_wait = 0.5
 
         while (current_window != self._session_window_id or current_window is None) and (time.time() - start_time < max_wait):
             if current_window is None:

@@ -23,6 +23,7 @@ class ProcessingSession:
         self.audio_result: AudioResult = audio_result
         self.chunk_queue: queue.Queue = queue.Queue()
         self.chunks_complete: threading.Event = threading.Event()
+        self.window_activated: threading.Event = threading.Event()
         self.error_message: Optional[str] = None
         self.retry_count: int = 0
 
