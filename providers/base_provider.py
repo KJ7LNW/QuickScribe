@@ -198,6 +198,8 @@ class AbstractProvider(ABC):
                             pr_notice("[REASONING]")
                             reasoning_header_shown = True
                         stream.write(reasoning)
+                        if streaming_callback:
+                            streaming_callback(('keepalive', None))
 
                     thinking = self._extract_thinking(chunk)
                     if thinking is not None:
@@ -207,6 +209,8 @@ class AbstractProvider(ABC):
                         for block in thinking:
                             if 'thinking' in block:
                                 stream.write(block['thinking'])
+                        if streaming_callback:
+                            streaming_callback(('keepalive', None))
 
                     text = self._extract_text(chunk)
                     if text is not None:

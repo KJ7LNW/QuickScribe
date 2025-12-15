@@ -121,6 +121,9 @@ def _invoke_model(provider, session: ProcessingSession, audio_data=None, text_da
                     if item[0] == 'done':
                         pr_debug("Transcription worker completed")
                         worker_completed = True
+                    elif item[0] == 'keepalive':
+                        last_activity = time.time()
+                        pr_debug("Keepalive received, timeout timer reset")
                     elif item[0] == 'error':
                         raise item[1]
                     else:
