@@ -18,10 +18,16 @@ def process_session_output(app, session: ProcessingSession):
         app.show_error_notification(session.error_message)
         return
 
-    app.transcription_service.keyboard.prepare_for_session(session)
+    def show_notification():
+        if session.recording_session.window_id is not None:
+            app.show_window_focus_notification(
+                session.recording_session.window_id,
+                "Click here to return to the original window and continue output"
+            )
+
+    app.transcription_service.keyboard.prepare_for_session(session, show_notification)
     app.transcription_service.reset_streaming_state()
 
-    notification_shown = False
     current_retry_count = session.retry_count
 
     try:
@@ -34,27 +40,6 @@ def process_session_output(app, session: ProcessingSession):
 
             try:
                 chunk = session.chunk_queue.get(timeout=0.1)
-
-                # Window activation synchronization on first chunk (just-in-time check)
-                # Ensures window check happens when chunks are ready, not at session start
-                if not notification_shown:
-                    notification_shown = True
-                    if app.transcription_service.keyboard.is_session_window_active():
-                        session.window_activated.set()
-                        if app.config.debug_enabled:
-                            pr_debug("Session window active, proceeding with output")
-                    else:
-                        if session.recording_session.window_id is not None:
-                            app.show_window_focus_notification(
-                                session.recording_session.window_id,
-                                "Click here to return to the original window and continue output"
-                            )
-                            pr_debug("Waiting for window activation event")
-                            session.window_activated.wait()
-                            pr_debug("Window activation event received, proceeding with output")
-                        else:
-                            session.window_activated.set()
-
                 app.transcription_service.process_streaming_chunk(chunk)
             except queue.Empty:
                 continue

@@ -5,7 +5,7 @@ import os
 import sys
 import time
 import threading
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Callable, TYPE_CHECKING
 sys.path.append(os.path.join(os.path.dirname(__file__), 'xml-stream'))
 from keyboard_injector import KeyboardInjector
 sys.path.insert(0, os.path.dirname(__file__))
@@ -111,6 +111,7 @@ class XdotoolKeyboardInjector(KeyboardInjector):
         self._modifier_tracker = ModifierStateTracker()
         self._session_window_id: Optional[str] = None
         self._session_window_activated_event: Optional[threading.Event] = None
+        self._show_notification_callback: Optional[Callable[[], None]] = None
 
     def get_trigger_window_id(self) -> Optional[str]:
         """Get active window ID at trigger time using xdotool."""
@@ -133,18 +134,20 @@ class XdotoolKeyboardInjector(KeyboardInjector):
                 pr_debug(f"Failed to capture window ID: {str(e)}")
             return None
 
-    def prepare_for_session(self, session: 'ProcessingSession') -> None:
+    def prepare_for_session(self, session: 'ProcessingSession', show_notification_callback: Optional[Callable[[], None]] = None) -> None:
         """Prepare keyboard injector for processing a specific session."""
         self._session_window_id = session.recording_session.window_id
         if self.debug_enabled and self._session_window_id is not None:
             pr_debug(f"Session window ID set to: {self._session_window_id}")
 
         self._session_window_activated_event = session.window_activated
+        self._show_notification_callback = show_notification_callback
 
     def cleanup_session(self) -> None:
         """Clean up session-specific state after processing completes."""
         self._session_window_id = None
         self._session_window_activated_event = None
+        self._show_notification_callback = None
 
     def _get_current_window_id(self) -> Optional[str]:
         """Get current active window ID."""
@@ -229,36 +232,31 @@ class XdotoolKeyboardInjector(KeyboardInjector):
             raise RuntimeError(f"Window activation failed for window {window_id}: {e}")
 
     def _wait_for_session_window(self) -> None:
-        """Block until active window matches session window with timeout."""
+        """Ensure session window is active before xdotool operation."""
         if self._session_window_id is None:
             return
 
-        waiting_logged = False
         current_window = self._get_current_window_id()
-        start_time = time.time()
-        max_wait = 0.5
+        if current_window == self._session_window_id:
+            return
 
-        while (current_window != self._session_window_id or current_window is None) and (time.time() - start_time < max_wait):
-            if current_window is None:
-                if self.debug_enabled and not waiting_logged:
-                    pr_debug("Cannot determine current window, waiting...")
-                    waiting_logged = True
-            else:
-                if self.debug_enabled and not waiting_logged:
-                    pr_debug(f"Waiting for window {self._session_window_id} (current: {current_window})")
-                    waiting_logged = True
+        if self.debug_enabled:
+            pr_debug(f"Window mismatch (expected: {self._session_window_id}, current: {current_window}), triggering notification")
 
-            time.sleep(0.1)
-            current_window = self._get_current_window_id()
+        if self._show_notification_callback is not None and self._session_window_activated_event is not None:
+            self._session_window_activated_event.clear()
+            self._show_notification_callback()
 
-        if current_window != self._session_window_id or current_window is None:
-            raise RuntimeError(f"Window activation timeout: waited {max_wait} seconds for window {self._session_window_id}, current window is {current_window}")
+            if self.debug_enabled:
+                pr_debug("Waiting for window activation event")
+            self._session_window_activated_event.wait()
+            if self.debug_enabled:
+                pr_debug("Window activation event received")
+        else:
+            if self.debug_enabled:
+                pr_debug("No notification callback available, proceeding with direct activation")
 
-        if waiting_logged and self.debug_enabled:
-            pr_debug("Window restored, proceeding")
-
-        if waiting_logged:
-            time.sleep(self.WINDOW_ACTIVATION_STABILIZATION_DELAY)
+        self.activate_window(self._session_window_id)
 
     def _run_xdotool(self, cmd: list) -> None:
         """Execute xdotool command after waiting for modifier keys to be released."""
