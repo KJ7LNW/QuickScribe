@@ -57,8 +57,6 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
         super().__init__(config, dtype, chunk_handler)
         self.model_identifier = model_identifier
         self.supports_streaming = supports_streaming
-        self.transcription_start_time = None
-        self.transcription_end_time = None
 
     @abstractmethod
     def _transcribe_audio(self, audio_data: np.ndarray) -> str:
@@ -97,35 +95,47 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
         return result
 
     def stop_recording(self) -> AudioResult:
-        """Stop recording and return transcribed text result."""
+        """
+        Stop recording and return audio data immediately.
+
+        Transcription is deferred to worker thread to avoid blocking recording queue.
+        Use transcribe_audio_data() in worker thread to perform transcription.
+        """
         audio_result = super().stop_recording()
 
-        if hasattr(audio_result, 'audio_data') and len(audio_result.audio_data) > 0:
-            if self.chunk_handler and hasattr(self.chunk_handler, 'end_streaming'):
+        if self.chunk_handler and hasattr(self.chunk_handler, 'end_streaming'):
+            if hasattr(audio_result, 'audio_data') and len(audio_result.audio_data) > 0:
                 self.chunk_handler.end_streaming()
 
-            pr_info(f"Transcribing with {self.model_identifier}...")
+        return audio_result
 
-            self.transcription_start_time = time.time()
-            transcribed_text = self._transcribe_audio(audio_result.audio_data)
-            self.transcription_end_time = time.time()
+    def transcribe_audio_data(self, audio_data: np.ndarray) -> str:
+        """
+        Transcribe audio data to formatted text.
 
-            elapsed_ms = int((self.transcription_end_time - self.transcription_start_time) * 1000)
-            pr_info(f"Transcription completed ({elapsed_ms}ms)")
+        Called from worker thread to perform transcription asynchronously.
+        Handles timing measurements and output formatting.
 
-            formatted_text = self.format_output(transcribed_text)
+        Args:
+            audio_data: Audio data array
 
-            return AudioTextResult(
-                transcribed_text=formatted_text,
-                sample_rate=self.config.sample_rate,
-                audio_data=audio_result.audio_data
-            )
-        else:
-            return AudioTextResult(
-                transcribed_text="",
-                sample_rate=self.config.sample_rate,
-                audio_data=np.array([], dtype=self.dtype)
-            )
+        Returns:
+            Formatted transcription text with TX tags
+        """
+        if len(audio_data) == 0:
+            return ""
+
+        pr_info(f"Transcribing with {self.model_identifier}...")
+
+        transcription_start_time = time.time()
+        transcribed_text = self._transcribe_audio(audio_data)
+        transcription_end_time = time.time()
+
+        elapsed_ms = int((transcription_end_time - transcription_start_time) * 1000)
+        pr_info(f"Transcription completed ({elapsed_ms}ms)")
+
+        formatted_text = self.format_output(transcribed_text)
+        return formatted_text
 
     @staticmethod
     def normalize_to_float32(audio_data: np.ndarray) -> np.ndarray:

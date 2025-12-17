@@ -17,14 +17,20 @@ def invoke_model_for_session(provider, session: ProcessingSession, result: Audio
     Thread worker that invokes model and writes chunks to session queue.
 
     This function runs in a daemon thread spawned by ProcessingCoordinator.
-    It routes the audio result to the appropriate model invocation based on type.
+    Performs deferred transcription for transcription mode, then routes
+    to appropriate model invocation based on result type.
     """
     if not provider:
         session.chunks_complete.set()
         return
 
     try:
-        if isinstance(result, AudioDataResult):
+
+        # Deferred transcription: transcribe AudioDataResult in transcription mode
+        if provider.config.is_transcription_mode() and isinstance(result, AudioDataResult):
+            transcribed_text = provider.audio_processor.transcribe_audio_data(result.audio_data)
+            _invoke_model(provider, session, text_data=transcribed_text)
+        elif isinstance(result, AudioDataResult):
             _invoke_model(provider, session, audio_data=result.audio_data)
         elif isinstance(result, AudioTextResult):
             _invoke_model(provider, session, text_data=result.transcribed_text)

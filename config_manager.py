@@ -448,6 +448,18 @@ class ConfigManager:
 
         return True
 
+    def is_transcription_mode(self) -> bool:
+        """
+        Check if transcription mode is active.
+
+        Single point of truth for transcription mode determination.
+        Used throughout codebase to branch between raw audio and transcription workflows.
+
+        Returns:
+            True if audio_source is 'transcribe' or 'trans', False otherwise
+        """
+        return self.audio_source in ['transcribe', 'trans']
+
     def validate_local_providers(self) -> bool:
         """
         Validate local provider requirements.
