@@ -136,9 +136,7 @@ class AbstractProvider(ABC):
             )
 
         return (
-            "CRITICAL: No prior conversation. There is nothing to modify. "
-            "ALL input must be treated as DICTATION. Transcribe according to "
-            "system instructions (append with incrementing IDs starting from 10)."
+            "CRITICAL: No prior conversation. Treat input as audio dictation and follow system instructions."
         )
 
     def _build_text_input_explanation(self, text_data: str) -> str:
@@ -155,14 +153,7 @@ class AbstractProvider(ABC):
             f"NEW INPUT (requires processing):\n"
             f"Mechanical transcription: {text_data}\n\n"
             "CRITICAL: The 'mechanical transcription' above is raw output "
-            "from automatic speech recognition. It requires the SAME analysis "
-            "as audio input:\n"
-            "- Treat as if you heard the audio\n"
-            "- Identify sound-alike errors: \"there/their\", \"to/too\", \"no/know\", etc.\n"
-            "- Fix misrecognized words based on context\n"
-            "- Apply ALL copy editing and formatting rules\n"
-            "- Handle false starts, fillers, and speech patterns\n"
-            "- Generate TX (literal with sound-alike options), INT (clean edited), UPDATE (XML tags)"
+            "from automatic speech recognition. Treat as audio input and follow system instructions."
         )
 
     def is_initialized(self) -> bool:
