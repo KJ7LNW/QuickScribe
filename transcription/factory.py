@@ -6,6 +6,7 @@ from transcription.implementations.huggingface.seq2seq import (
     WhisperTranscriptionAudioSource,
     Speech2TextTranscriptionAudioSource
 )
+from transcription.implementations.huggingface.nemo_tdt import NeMoTDTTranscriptionAudioSource
 from transcription.implementations.openai import OpenAITranscriptionAudioSource
 from transcription.implementations.vosk import VoskTranscriptionAudioSource
 
@@ -19,6 +20,7 @@ _HUGGINGFACE_IMPLEMENTATIONS = {
     'ctc': HuggingFaceCTCTranscriptionAudioSource,
     'whisper': WhisperTranscriptionAudioSource,
     'speech2text': Speech2TextTranscriptionAudioSource,
+    'nemo_tdt': NeMoTDTTranscriptionAudioSource,
 }
 
 

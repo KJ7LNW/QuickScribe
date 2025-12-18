@@ -19,6 +19,17 @@ try:
 except ImportError:
     is_offline_mode = None
 
+try:
+    from huggingface_hub import HfApi
+    hf_api = HfApi()
+except ImportError:
+    hf_api = None
+
+try:
+    import nemo.collections.asr as nemo_asr
+except ImportError:
+    nemo_asr = None
+
 from .processor_utils import load_processor_with_fallback
 
 
@@ -51,6 +62,32 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
         offline_mode = is_offline_mode()
 
     pr_info(f"Loading model: {model_path}")
+
+    if hf_api is not None:
+        try:
+            repo_files = hf_api.list_repo_files(model_path)
+            nemo_files = [f for f in repo_files if f.endswith('.nemo')]
+
+            if nemo_files:
+                pr_info(f"Detected NeMo model: {nemo_files[0]}")
+
+                if nemo_asr is None:
+                    raise ImportError(
+                        f"Model {model_path} is a NeMo model but nemo_toolkit not installed. "
+                        "Install with: pip install nemo_toolkit[asr]"
+                    )
+
+                pr_info("Loading NeMo ASR model")
+                model = nemo_asr.models.ASRModel.from_pretrained(model_name=model_path)
+                model.eval()
+
+                pr_info(f"Successfully loaded NeMo TDT model: {model_path}")
+                return model, None, 'nemo_tdt'
+
+        except ImportError:
+            raise
+        except Exception as nemo_error:
+            pr_info(f"Not a NeMo model or detection failed: {nemo_error}")
 
     try:
         pr_info("Attempting to load as CTC model")

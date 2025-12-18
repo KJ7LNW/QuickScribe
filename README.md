@@ -15,6 +15,8 @@ Real-time AI-powered dictation application with multiple audio source options an
   - None: Passthrough mode (injects raw transcription without LLM processing)
 - **Transcription Models** (when using transcription audio source)
   - HuggingFace Wav2Vec2 (local, phoneme-based)
+  - HuggingFace Whisper/Speech2Text (local, GPU-accelerated)
+  - HuggingFace NeMo TDT (local, NVIDIA transducer models)
   - OpenAI Whisper (cloud API)
   - Groq Whisper (cloud API)
   - VOSK (local, offline)
@@ -77,6 +79,8 @@ Both `--model` and `--transcription-model` use format: `provider/identifier`
 **LLM providers**: `groq`, `gemini`, `openai`, `anthropic`, `openrouter`, `huggingface`, `llamacpp`, `gguf`, `none`
 **Transcription providers**: `huggingface`, `openai`, `groq`, `vosk`
 
+**Note**: HuggingFace transcription provider supports multiple architectures (CTC, Seq2Seq, NeMo TDT) with automatic detection.
+
 **LlamaCpp/GGUF provider**: `gguf` is an alias for `llamacpp`
 
 **None provider**: Bypasses LLM processing and injects raw transcription output directly. Useful for:
@@ -119,7 +123,10 @@ python dictate.py --model groq/llama-3.3-70b-versatile
 python dictate.py -a transcribe -T openai/whisper-1 --model anthropic/claude-3-5-sonnet-20241022
 
 # Transcription → Direct injection (no LLM)
-python dictate.py -a transcribe -T vosk/model --model none
+python dictate.py -a transcribe -T vosk/vosk-model-small-en-us-0.15 --model none/
+
+# NeMo TDT → Direct injection (no LLM)
+python dictate.py -a transcribe -T huggingface/nvidia/parakeet-tdt-0.6b-v3 --model none/
 
 # Transcription → Local GGUF LLM
 python dictate.py -a transcribe -T vosk/vosk-model-small-en-us-0.15 --model gguf/bartowski/Qwen2.5-0.5B-Instruct-GGUF@Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
@@ -304,6 +311,51 @@ Local Whisper and Speech2Text models with GPU acceleration.
 python dictate.py -a transcribe -T huggingface/openai/whisper-small --model groq/llama-3.3-70b-versatile
 ```
 
+#### HuggingFace NeMo TDT Models (Local)
+
+NVIDIA NeMo ASR models using Token-and-Duration Transducer architecture.
+
+**Supported models:**
+- Parakeet TDT (FastConformer + TDT decoder)
+- High accuracy with efficient decoding
+- Built-in language detection (25+ languages)
+- Timestamp support (word, segment, character level)
+
+**Features:**
+- Plain text output with punctuation and capitalization
+- GPU acceleration strongly recommended
+- No streaming support
+- Supports audio up to 24 minutes (full attention) or 3 hours (local attention)
+
+**Requirements:**
+```bash
+pip install nemo_toolkit[asr]
+```
+
+**Available models:**
+
+```bash
+-T huggingface/nvidia/parakeet-tdt-0.6b-v3  # 600M params, state-of-the-art accuracy
+-T huggingface/nvidia/parakeet-tdt-0.6b-v2  # 600M params, previous version
+-T huggingface/nvidia/parakeet_realtime_eou_120m-v1  # 120M params, real-time with end-of-utterance detection
+```
+
+**Examples:**
+
+```bash
+# With LLM formatting
+python dictate.py -a transcribe -T huggingface/nvidia/parakeet-tdt-0.6b-v3 --model groq/llama-3.3-70b-versatile
+
+# Direct injection (no LLM)
+python dictate.py -a transcribe -T huggingface/nvidia/parakeet-tdt-0.6b-v3 --model none/
+```
+
+**Notes:**
+- Models downloaded from HuggingFace Hub on first use (~2.5GB)
+- CUDA GPU strongly recommended (CPU inference very slow)
+- First load includes tokenizer and model initialization (~30 seconds)
+- Automatic architecture detection (no manual configuration needed)
+
 #### VOSK Models (Local, Offline)
 
 Lightweight offline speech recognition with streaming support.
@@ -380,16 +432,24 @@ python dictate.py -a transcribe -T huggingface/facebook/wav2vec2-lv-60-espeak-cv
 | whisper-medium | ~769 MB | Slow | High accuracy needed |
 | whisper-large-v3 | ~1.5 GB | Slowest | Best accuracy |
 | distil-whisper/distil-large-v2 | ~756 MB | 6x faster | Production (faster alternative to large) |
+| nvidia/parakeet-tdt-0.6b-v3 | ~2.5 GB | Fast (GPU) | State-of-the-art accuracy, multilingual |
 
 #### Architecture Detection (HuggingFace)
 
 HuggingFace provider automatically detects model architecture:
 
-1. Attempts to load as CTC model
-2. If CTC fails, attempts to load as Seq2Seq model
-3. If both fail, returns error with supported architecture types
+1. Checks for NeMo `.nemo` checkpoint files
+2. If NeMo found, loads via nemo_toolkit
+3. Otherwise, attempts to load as CTC model
+4. If CTC fails, attempts to load as Seq2Seq model
+5. If all fail, returns error with supported architecture types
 
 You do not need to specify the architecture type - just use `huggingface/<model-id>`.
+
+**Supported architectures:**
+- **NeMo TDT**: FastConformer-TDT transducer models (nvidia/parakeet-*)
+- **CTC**: Wav2Vec2, HuBERT, Data2VecAudio (multi-speed, phoneme/text output)
+- **Seq2Seq**: Whisper, Speech2Text (GPU-accelerated text output)
 
 #### Testing Model Compatibility
 
@@ -400,9 +460,10 @@ python dictate.py --audio-source transcribe -T huggingface/<model-id>
 ```
 
 Watch for log messages:
+- "Successfully loaded NeMo TDT model" → NeMo transducer architecture
 - "Successfully loaded as CTC model" → Multi-speed + phoneme/text output
 - "Successfully loaded as Seq2Seq model" → GPU-accelerated text output
-- "not compatible with CTC or Seq2Seq" → Model not supported
+- "not compatible with CTC or Seq2Seq" → Model not supported (or missing nemo_toolkit)
 
 #### Requirements
 
@@ -413,6 +474,7 @@ pip install torch transformers huggingface_hub pyrubberband
 
 # Optional (for specific models)
 pip install sentencepiece  # Required for Speech2Text models
+pip install nemo_toolkit[asr]  # Required for NeMo TDT models (nvidia/parakeet-*)
 ```
 
 **OpenAI Models:**

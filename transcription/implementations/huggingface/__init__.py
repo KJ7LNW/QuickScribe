@@ -12,6 +12,7 @@ from .seq2seq import (
     WhisperTranscriptionAudioSource,
     Speech2TextTranscriptionAudioSource
 )
+from .nemo_tdt import NeMoTDTTranscriptionAudioSource
 
 __all__ = [
     'CTCVocabDecoder',
@@ -21,5 +22,6 @@ __all__ = [
     'HuggingFaceCTCTranscriptionAudioSource',
     'HuggingFaceSeq2SeqTranscriptionAudioSource',
     'WhisperTranscriptionAudioSource',
-    'Speech2TextTranscriptionAudioSource'
+    'Speech2TextTranscriptionAudioSource',
+    'NeMoTDTTranscriptionAudioSource'
 ]
