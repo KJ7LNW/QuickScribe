@@ -9,24 +9,17 @@ Supports any LiteLLM provider with audio input capability:
 - OpenRouter
 """
 import sys
-import base64
-import io
 import numpy as np
 from pathlib import Path
-from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'lib'))
 from pr_log import pr_err, pr_info, pr_debug
-
-try:
-    import soundfile as sf
-except ImportError:
-    sf = None
 
 from transcription.base import TranscriptionAudioSource
 from providers.mapper_factory import MapperFactory
 from providers.registry import extract_provider
 from instruction_composer import InstructionComposer
+from providers.litellm_utils import encode_audio_to_base64, process_streaming_response
 
 
 class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
@@ -34,6 +27,7 @@ class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
     LiteLLM-based transcription for cloud API backends with audio support.
 
     Uses literal transcription instructions to produce verbatim text output.
+    Streams response with reasoning/thinking display for consistency with main provider.
     """
 
     def __init__(self, config):
@@ -70,8 +64,11 @@ class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
         # Get provider-specific mapper
         self.mapper = MapperFactory.get_mapper(self.provider)
 
-        # Instruction composer for cached loading with auto-reload
-        self.instruction_composer = InstructionComposer()
+        # Load literal transcription instructions via composer (cached)
+        composer = InstructionComposer()
+        self.instructions = composer.load_file('transcription/literal.md')
+        if self.instructions is None:
+            raise FileNotFoundError("Literal transcription instructions not found: transcription/literal.md")
 
         # Import LiteLLM
         try:
@@ -86,29 +83,9 @@ class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
 
         pr_info(f"LiteLLM transcription initialized: {model_identifier}")
 
-    def _encode_audio_to_base64(self, audio_np: np.ndarray, sample_rate: int) -> str:
-        """
-        Encode audio numpy array to base64 WAV string.
-
-        Args:
-            audio_np: Audio data as numpy array
-            sample_rate: Sample rate in Hz
-
-        Returns:
-            Base64-encoded WAV data
-        """
-        if sf is None:
-            raise ImportError("soundfile library required for audio encoding. Install with: pip install soundfile")
-
-        wav_bytes_io = io.BytesIO()
-        sf.write(wav_bytes_io, audio_np, sample_rate, format='WAV', subtype='PCM_16')
-        wav_bytes = wav_bytes_io.getvalue()
-        wav_bytes_io.close()
-        return base64.b64encode(wav_bytes).decode('utf-8')
-
     def _transcribe_audio(self, audio_data: np.ndarray) -> str:
         """
-        Transcribe audio using LiteLLM provider.
+        Transcribe audio using LiteLLM provider with streaming output.
 
         Args:
             audio_data: Audio data array
@@ -116,28 +93,26 @@ class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
         Returns:
             Transcribed text (plain text, no formatting)
         """
-        # Load instructions with caching and auto-reload on modification
-        instructions = self.instruction_composer._load('transcription/literal.md')
-        if instructions is None:
-            raise FileNotFoundError("Literal transcription instructions not found: instructions/transcription/literal.md")
-
-        # Encode audio to base64
-        audio_b64 = self._encode_audio_to_base64(audio_data, self.config.sample_rate)
+        # Encode audio to base64 using shared utility
+        audio_b64 = encode_audio_to_base64(audio_data, self.config.sample_rate)
 
         # Build audio content using provider-specific mapper
         audio_content = self.mapper.map_audio_params(audio_b64, "wav")
 
         # Build messages
         messages = [
-            {"role": "system", "content": instructions},
-            {"role": "user", "content": [audio_content]}
+            {"role": "system", "content": self.instructions},
+            {"role": "user", "content": [
+                {"type": "text", "text": "Transcribe the audio following system instructions."},
+                audio_content
+            ]}
         ]
 
         # Build completion params
         completion_params = {
             "model": self.model_without_route,
             "messages": messages,
-            "stream": False,
+            "stream": True,
             "timeout": self.config.http_timeout
         }
 
@@ -162,17 +137,20 @@ class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
             )
             completion_params.update(reasoning_params)
 
-        # Call LiteLLM
+        # Call LiteLLM with streaming
         try:
+            pr_info("RECEIVED FROM TRANSCRIPTION MODEL (streaming):")
             response = self.litellm.completion(**completion_params)
-            text = response.choices[0].message.content
 
-            if text is None:
-                text = ""
+            # Process streaming response using shared utility
+            accumulated_text = process_streaming_response(response)
+
+            if accumulated_text is None:
+                accumulated_text = ""
             else:
-                text = text.strip()
+                accumulated_text = accumulated_text.strip()
 
-            return text
+            return accumulated_text
 
         except Exception as e:
             pr_err(f"LiteLLM transcription error: {e}")

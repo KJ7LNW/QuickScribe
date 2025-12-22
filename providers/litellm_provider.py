@@ -5,11 +5,9 @@ Handles: OpenAI, Anthropic, Gemini, Groq, OpenRouter via LiteLLM library.
 """
 from typing import Optional
 import numpy as np
-import base64
-import io
-import soundfile as sf
 from .base_provider import AbstractProvider
 from .mapper_factory import MapperFactory
+from .litellm_utils import encode_audio_to_base64, extract_text, extract_reasoning, extract_thinking, extract_usage
 from lib.pr_log import (
     pr_emerg, pr_alert, pr_crit, pr_err, pr_warn, pr_notice, pr_info, pr_debug
 )
@@ -117,11 +115,7 @@ class LiteLLMProvider(AbstractProvider):
 
     def _encode_audio_to_base64(self, audio_np: np.ndarray, sample_rate: int) -> str:
         """Encode audio numpy array to base64 WAV string."""
-        wav_bytes_io = io.BytesIO()
-        sf.write(wav_bytes_io, audio_np, sample_rate, format='WAV', subtype='PCM_16')
-        wav_bytes = wav_bytes_io.getvalue()
-        wav_bytes_io.close()
-        return base64.b64encode(wav_bytes).decode('utf-8')
+        return encode_audio_to_base64(audio_np, sample_rate)
 
     def _run_validation_tests(self, test_audio_silence_b64: str, sumtest_audio_b64: str):
         """
@@ -437,30 +431,19 @@ class LiteLLMProvider(AbstractProvider):
 
     def _extract_text(self, chunk) -> Optional[str]:
         """Extract text content from LiteLLM response chunk."""
-        delta = chunk.choices[0].delta
-        if delta.content is not None:
-            return delta.content
-        return None
+        return extract_text(chunk)
 
     def _extract_reasoning(self, chunk) -> Optional[str]:
         """Extract reasoning content from LiteLLM response chunk."""
-        delta = chunk.choices[0].delta
-        if hasattr(delta, 'reasoning_content') and delta.reasoning_content is not None:
-            return delta.reasoning_content
-        return None
+        return extract_reasoning(chunk)
 
     def _extract_thinking(self, chunk) -> Optional[list]:
         """Extract thinking blocks from LiteLLM response chunk."""
-        delta = chunk.choices[0].delta
-        if hasattr(delta, 'thinking_blocks') and delta.thinking_blocks is not None:
-            return delta.thinking_blocks
-        return None
+        return extract_thinking(chunk)
 
     def _extract_usage(self, chunk) -> Optional[dict]:
         """Extract usage statistics from LiteLLM response chunk."""
-        if hasattr(chunk, 'usage') and chunk.usage is not None:
-            return chunk.usage
-        return None
+        return extract_usage(chunk)
 
     def _display_user_content(self, user_content):
         """Display user content being sent to model."""

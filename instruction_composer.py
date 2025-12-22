@@ -93,6 +93,20 @@ class InstructionComposer:
         # Replace all @import lines
         return re.sub(r'^@(.+)$', replace_import, content, flags=re.MULTILINE)
 
+    def load_file(self, relative_path: str) -> Optional[str]:
+        """
+        Load instruction file with caching.
+
+        Public interface to cached file loading.
+
+        Args:
+            relative_path: Path relative to instructions/ directory
+
+        Returns:
+            File content or None if not found
+        """
+        return self._load(relative_path)
+
     def _load(self, path: str) -> Optional[str]:
         """Load instruction file with caching and mtime-based invalidation."""
         try:
