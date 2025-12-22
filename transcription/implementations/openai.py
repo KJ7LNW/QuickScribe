@@ -13,7 +13,8 @@ except ImportError:
     litellm = None
     sf = None
 
-from transcription.base import TranscriptionAudioSource, parse_transcription_model
+from transcription.base import TranscriptionAudioSource
+from providers.registry import extract_model
 from lib.pr_log import pr_err, pr_warn, pr_info
 
 
@@ -21,7 +22,7 @@ class OpenAITranscriptionAudioSource(TranscriptionAudioSource):
     """OpenAI Whisper transcription implementation using litellm."""
 
     def __init__(self, config, transcription_model: str):
-        model_identifier = parse_transcription_model(transcription_model)
+        model_identifier = extract_model(transcription_model)
         super().__init__(config, model_identifier, supports_streaming=False, dtype='int16')
 
         self.api_key = getattr(config, 'api_key', None)

@@ -23,7 +23,8 @@ try:
 except ImportError:
     pyrb = None
 
-from transcription.base import TranscriptionAudioSource, parse_transcription_model
+from transcription.base import TranscriptionAudioSource
+from providers.registry import extract_model
 from lib.pr_log import pr_err, pr_warn, pr_info
 from ..processor_utils import load_processor_with_fallback
 
@@ -45,7 +46,7 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
             processor: Pre-loaded processor (required when passing model object)
         """
         if isinstance(transcription_model_or_model, str):
-            model_identifier = parse_transcription_model(transcription_model_or_model)
+            model_identifier = extract_model(transcription_model_or_model)
         else:
             model = transcription_model_or_model
             model_identifier = model.name_or_path if hasattr(model, 'name_or_path') else str(model)

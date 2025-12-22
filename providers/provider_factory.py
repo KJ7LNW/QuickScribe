@@ -1,28 +1,9 @@
 """
 Provider factory for instantiating LLM backends.
 
-Single point of truth for provider selection based on model_id prefix.
+Uses registry for provider selection based on model_id prefix.
 """
-from providers.huggingface_provider import HuggingFaceProvider
-from providers.litellm_provider import LiteLLMProvider
-from providers.llamacpp_provider import LlamaCppProvider
-from providers.none_provider import NoneProvider
-
-
-_PROVIDERS = {
-    'huggingface': HuggingFaceProvider,
-    'llamacpp': LlamaCppProvider,
-    'gguf': LlamaCppProvider,
-    'none': NoneProvider,
-}
-
-
-def _extract_provider(model_id: str) -> str:
-    """Extract provider prefix from model_id."""
-    if model_id and '/' in model_id:
-        return model_id.split('/', 1)[0].lower()
-
-    return ''
+from providers.registry import get_implementation, get_default, extract_provider, ProviderCapability
 
 
 def create_provider(config, audio_processor):
@@ -34,9 +15,12 @@ def create_provider(config, audio_processor):
         audio_processor: AudioSource instance
 
     Returns:
-        Provider instance (LiteLLMProvider or HuggingFaceProvider)
+        Provider instance (LiteLLMProvider, HuggingFaceProvider, etc.)
     """
-    provider_name = _extract_provider(config.model_id)
-    provider_class = _PROVIDERS.get(provider_name, LiteLLMProvider)
+    provider_name = extract_provider(config.model_id)
+    impl = get_implementation(provider_name, ProviderCapability.LLM)
 
-    return provider_class(config, audio_processor)
+    if impl:
+        return impl(config, audio_processor)
+
+    return get_default(ProviderCapability.LLM)(config, audio_processor)

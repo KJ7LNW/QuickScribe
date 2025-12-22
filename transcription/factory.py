@@ -1,20 +1,13 @@
 """Factory for creating transcription audio sources."""
 
-from transcription.base import parse_transcription_model
+from providers.registry import get_implementation, get_default, extract_provider, ProviderCapability
 from transcription.implementations.huggingface.ctc import HuggingFaceCTCTranscriptionAudioSource
 from transcription.implementations.huggingface.seq2seq import (
     WhisperTranscriptionAudioSource,
     Speech2TextTranscriptionAudioSource
 )
 from transcription.implementations.huggingface.nemo_tdt import NeMoTDTTranscriptionAudioSource
-from transcription.implementations.openai import OpenAITranscriptionAudioSource
-from transcription.implementations.vosk import VoskTranscriptionAudioSource
 
-
-_TRANSCRIPTION_IMPLEMENTATIONS = {
-    'openai': OpenAITranscriptionAudioSource,
-    'vosk': VoskTranscriptionAudioSource,
-}
 
 _HUGGINGFACE_IMPLEMENTATIONS = {
     'ctc': HuggingFaceCTCTranscriptionAudioSource,
@@ -45,12 +38,19 @@ def get_transcription_source(config):
             "Expected format: provider/model-identifier"
         )
 
-    provider = transcription_model.split('/', 1)[0].lower()
+    provider = extract_provider(transcription_model)
 
+    # Check for registered transcription provider
+    impl = get_implementation(provider, ProviderCapability.TRANSCRIPTION)
+    if impl:
+        return impl(config, transcription_model)
+
+    # Special case: HuggingFace requires architecture detection
     if provider == 'huggingface':
         from transcription.implementations.huggingface.model_loader import load_huggingface_model
 
-        model_identifier = parse_transcription_model(transcription_model)
+        # Extract model identifier (remove provider prefix)
+        model_identifier = transcription_model.split('/', 1)[1]
         model, processor, architecture = load_huggingface_model(
             model_identifier,
             cache_dir=None,
@@ -67,12 +67,5 @@ def get_transcription_source(config):
 
         return implementation_class(config, model, processor)
 
-    else:
-        implementation_class = _TRANSCRIPTION_IMPLEMENTATIONS.get(provider)
-        if implementation_class is None:
-            raise ValueError(
-                f"Unsupported transcription provider: '{provider}'. "
-                f"Supported providers: {', '.join(list(_TRANSCRIPTION_IMPLEMENTATIONS.keys()) + ['huggingface'])}"
-            )
-
-        return implementation_class(config, transcription_model)
+    # Fall back to LiteLLM transcription for unregistered providers
+    return get_default(ProviderCapability.TRANSCRIPTION)(config)

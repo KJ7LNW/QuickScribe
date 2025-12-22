@@ -26,6 +26,59 @@ Example with multiple stage changes:
 
 ### Preprocessing (applies during all stages)
 
+#### Metapragmatic Directive Processing (first priority)
+
+Process in order: pattern recognition → scope determination → content extraction → directive application → consumption
+
+Format: [context] [directive] [scope] [content]
+
+Context markers (optional, consumed):
+	- "mark down"/"markdown"/"in markdown" → Markdown formatting
+	- "in code"/"code format" → code syntax
+	- Implicit from current mode
+
+Directive keywords (consumed):
+	- Structure: "parenthetical"/"parenthesis"→(), "paragraph break"→¶, "bullet"→•, "numbered"→1., "heading"→#
+	- Punctuation: "period"→., "comma"→,, "semicolon"→;, "colon"→:, "question"→?, "dash"→—, "ellipsis"→…
+	- Markup: "bold"/"bold star star"→**, "italic"/"italics"→*, "code"→`, "link"→[]()
+	- Capitalization: "capitalize"/"title case"→Title, "caps"/"uppercase"/"all caps"/"all cap"/"all capital"→UPPER, "lowercase"/"all lowercase"/"exactly lowercase"→lower
+	- Quote marks: "quote"/"quotes"/"double quote"→"", "single quote"/"half quote"→''
+	- Spacing: "no space"→remove spacing, "one word"→combine tokens
+	- Correction: "scratch"→delete preceding, "undo"→revert last
+	- Spelling: "X is spelled Y"→apply Y to preceding X; "spelled Y"→apply Y to preceding term
+	- Wildcards: "star"/"asterisk"→* in code patterns
+	- Flag case: "dash L"→-l not -L; default lowercase unless uppercase explicitly verbalized
+
+Scope indicators (optional, consumed):
+	- "sentence" → complete sentence after directives consumed
+	- "word" → single word after directives consumed
+	- "line" → to next terminator
+	- "paragraph" → to paragraph break
+	- Implicit scope when no indicator: remaining content (formatting directives), next phrase/clause (punctuation directives), following word/phrase (structure directives)
+
+Implicit directive patterns:
+	- Punctuation + hedge: "parenthesis I think"→(I think), "comma you know"→, you know,
+	- Paired explicit: "parentheses...close parentheses"→()
+
+Redundancy resolution:
+	- Duplicate keywords apply once: "bold star star"→**
+	- Multiple distinct directives all apply
+
+Content extraction:
+	- Begins after last directive keyword, scope indicator, context marker
+	- Includes all remaining verbalized speech
+	- Excludes directive keywords, scope indicators, context markers
+
+Transformation:
+	- Apply formatting: wrap content in delimiters, convert to specified case/format, insert punctuation/structure
+	- Delete: context markers, directive keywords, scope indicators, redundant specifications
+	- Preserve: extracted content with applied formatting
+	- Priority when multiple directives: context markers → structural → formatting → case → spacing; within same priority: left to right
+	- Mark result as explicitly styled (exempt from int3 auto-capitalization and all-caps conversion per lines 331, 334)
+	- int2b backtick rules still apply for code vs prose context
+
+#### Ambiguity Resolution
+
 Resolve ambiguities:
 	- Apply domain knowledge
 	- Resolve technical homophones when grammatical structure invalid: test whether technical domain homophone provides required word class for valid structure
@@ -73,26 +126,9 @@ Resolve ambiguities:
 			- Pattern: general term followed by specific term in coordination without contrastive intent
 			- Example: "mini PCI version, mini PCIe version" → "mini PCIe version" (PCIe subsumes PCI context)
 			- Preserve when terms represent distinct alternatives in contrast: "X version, not Y version"
-	- Strip metapragmatic instruction, apply transformation, delete directive utterance; mark transformed content as explicitly styled
-		- Explicitly styled content exempt from automatic capitalization at int3 stage
-		- Structure: parenthetical→()/paragraph break→¶/bullet→•/numbered→1./heading→#
-		- Punctuation: period→./comma→,/semicolon→;/colon→:/question→?/dash→—/ellipsis→…
-		- Markup: bold→**/italic→*/code→`/link→[]()
-		- Capitalization: capitalize→Title/caps→UPPER/lowercase→lower/all cap→UPPER/all capital→UPPER
-			- Explicit capitalization directives override automatic proper noun capitalization
-			- "exactly lowercase"/"all lowercase"→strip all capitalization, including proper nouns
-			- "no space"→remove spacing between tokens
-		- Correction: scratch→delete-preceding/undo→revert-last
-		- Spelling clarification: "X is spelled Y"→apply Y to preceding occurrence of X; "spelled Y"→apply Y to preceding term
-		- Detect implicit directives: conversational patterns signaling formatting intent
-			- Punctuation word + hedge phrase: "parenthesis I think"→(I think), "comma you know"→, you know,
-			- Paired explicit form: "parentheses...close parentheses"→() (same output as implicit)
-			- Styling constraints: "all lowercase", "all cap", "all capital", "no space", "one word", "capitalized"
-			- Technical identifiers: apply code delimiters and formatting based on context when styling obvious
-			- Apply formatting, consume directive language; do not include directive words in output
+	- Process metapragmatic directives per Metapragmatic Directive Processing section
 	- Expand speaker spelling: L-I-N-U-X→Linux (proper capitalization, not acronym unless context confirms)
-	- Convert verbalized wildcards: "star"/"asterisk"→* in code patterns; apply code delimitation rules
-	- Apply flag case convention: "dash L"→-l not -L; default lowercase unless uppercase explicitly verbalized
+	- Convert verbalized wildcards per Metapragmatic Directive Processing section
 - `<int1>` Correct morphological agreement
 	- Correct subject-verb agreement: verb agrees with head noun of subject noun phrase, not with nouns in modifying prepositional phrases or relative clauses
 		- *it do not→it does not
@@ -328,10 +364,10 @@ Resolve ambiguities:
 		- Capitalize formal titles when preceding names
 	- Apply exclamation marks to conventional greetings/farewells/well-wishes (Happy birthday, Have a great day, Congratulations); limit elsewhere (prefer lexical intensity over emphatic punctuation)
 	- Capitalize sentence-initial and proper nouns
-		- Skip capitalization for explicitly styled content (metapragmatic directives applied at int stage)
+		- Skip capitalization for explicitly styled content (per Metapragmatic Directive Processing section)
 		- Skip capitalization for backticked content (literal typed syntax from int2b stage)
 	- Convert all-caps to sentence case while applying canonical capitalization for technical terms (e.g., IPv6 not IPV6, OAuth not OAUTH; preserve API/HTTP/DNS in caps)
-		- Skip conversion for explicitly styled or backticked content
+		- Skip conversion for explicitly styled content (per Metapragmatic Directive Processing section) or backticked content
 	- Format numbers: zero-three spelled/4+ digits, 25%, $5, 3.14
 	- Format dimensions: convert "by" to lowercase x without spaces (6 by 7 by 8→6x7x8)
 	- Apply quotation marks: double quotes for metalinguistic mention (referring to a word itself rather than its referent), distancing usage (irony/euphemisms/questionable-claims/approximation)
@@ -348,6 +384,8 @@ Perform final verification before update:
 	- {|}
 	- Disfluencies (um/uh/er/ah)
 	- Unprocessed metapragmatics
+	- Unconsumed directive keywords (parenthetical, bold, capitalize, mark down, markdown, sentence, word, etc.)
+	- Unconsumed scope indicators when directive applied
 	- Unmarked interrogatives
 	- Multiple semicolons per sentence (except list separators)
 	- Semicolons without conjunctive adverb

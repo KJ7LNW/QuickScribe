@@ -12,28 +12,6 @@ sys.path.insert(0, 'lib')
 from pr_log import pr_info
 
 
-def parse_transcription_model(transcription_model: str) -> str:
-    """
-    Parse transcription model identifier.
-
-    Single point of truth for model identifier extraction.
-
-    Handles both formats:
-    - "provider/model" → extracts "model"
-    - "model" → returns "model" as-is
-
-    Args:
-        transcription_model: Model specification string
-
-    Returns:
-        Model identifier without provider prefix
-    """
-    if '/' in transcription_model:
-        return transcription_model.split('/', 1)[1]
-
-    return transcription_model
-
-
 class TranscriptionAudioSource(MicrophoneAudioSource):
     """
     Base class for audio sources that transcribe audio to text.

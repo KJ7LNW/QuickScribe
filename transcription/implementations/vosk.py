@@ -12,7 +12,8 @@ except ImportError:
     vosk = None
 
 from audio_source import AudioChunkHandler
-from transcription.base import TranscriptionAudioSource, parse_transcription_model
+from transcription.base import TranscriptionAudioSource
+from providers.registry import extract_model
 from lib.pr_log import pr_err, pr_warn, pr_info, get_streaming_handler
 
 
@@ -180,7 +181,7 @@ class VoskTranscriptionAudioSource(TranscriptionAudioSource):
 
     def __init__(self, config, transcription_model: str):
         import os
-        model_identifier = parse_transcription_model(transcription_model)
+        model_identifier = extract_model(transcription_model)
         model_path = os.path.expanduser(model_identifier)
         lgraph_path = getattr(config, 'vosk_lgraph_path', None)
 
