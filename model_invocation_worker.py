@@ -12,6 +12,11 @@ from lib.pr_log import pr_err, pr_warn, pr_debug
 from litellm import exceptions as litellm_exceptions
 
 
+def _is_transcription_insufficient(text: Optional[str]) -> bool:
+    """Check if transcription text is insufficient for model invocation."""
+    return text is None or text == '<none>' or text.strip() == ''
+
+
 def invoke_model_for_session(provider, session: ProcessingSession, result: AudioResult):
     """
     Thread worker that invokes model and writes chunks to session queue.
@@ -29,14 +34,24 @@ def invoke_model_for_session(provider, session: ProcessingSession, result: Audio
         # Deferred transcription: transcribe AudioDataResult in transcription mode
         if provider.config.is_transcription_mode() and isinstance(result, AudioDataResult):
             transcribed_text = provider.audio_processor.transcribe_audio_data(result.audio_data)
+
+            if _is_transcription_insufficient(transcribed_text):
+                pr_warn("Skipping model invocation: insufficient transcription from audio")
+                session.chunks_complete.set()
+                return
+
             _invoke_model(provider, session, text_data=transcribed_text)
         elif isinstance(result, AudioDataResult):
             _invoke_model(provider, session, audio_data=result.audio_data)
         elif isinstance(result, AudioTextResult):
+            if _is_transcription_insufficient(result.transcribed_text):
+                pr_warn("Skipping model invocation: insufficient transcription from audio")
+                session.chunks_complete.set()
+                return
+
             _invoke_model(provider, session, text_data=result.transcribed_text)
         else:
-            pr_err(f"Unsupported audio result type: {type(result)}")
-            session.chunks_complete.set()
+            raise TypeError(f"Unsupported audio result type: {type(result)}")
     except Exception as e:
         pr_err(f"Error in invoke_model_for_session: {e}")
         session.chunks_complete.set()
