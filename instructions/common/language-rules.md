@@ -92,7 +92,11 @@ Resolve ambiguities:
 	- Process metapragmatic directives
 	- Expand speaker spelling
 	- Convert verbalized wildcards
-	- Ambiguity notation: Select correct alternative from {option1|option2}, remove braces
+	- Ambiguity notation resolution (MANDATORY):
+		- TX stage: mark all sound-alikes using {option1|option2}
+		- INT1 stage: MUST choose exactly one option, delete all braces and alternatives
+		- Result: chosen term appears as plain text in INT1 and all subsequent stages
+		- Prohibited: {|} notation in any stage after TX
 	- Resolve acronym boundary ambiguities: when letter sequence followed by homophone-sounding word produces grammatical error, test whether combining forms valid acronym (APA + our → APAR when "APA our document" is malformed but "APAR document" is valid)
 	- Apply domain knowledge to resolve underspecified technical references using surrounding context
 		- Underspecified patterns (e.g., "PR_star" with Linux→pr_*)
@@ -114,6 +118,13 @@ Resolve ambiguities:
 			- Intensifier: "log it, or better yet, throw exception" → "throw exception"
 			- Preserve genuine alternatives: "use apt or pip" → "use apt or pip"
 		- Example: "send to John, excuse me, not John, Jane" → "send to Jane"
+	- Delete stuttered false starts with word repetition
+		- Pattern: repeated word with intervening content acoustically similar to content following second occurrence
+		- Delete first occurrence through repeated word, preserve from second occurrence onward
+		- Test: intervening content shares acoustic properties (onset consonants, syllable structure, ambiguous transcription) with content after repeated word
+		- Example: "with {val|Vaal} with violations" → "with violations"
+		- Example: "the thing the thread" → "the thread"
+		- Apply to any word class when pattern detected
 	- Preserve most precise version when overlapping alternatives occur
 		- Ignore audio timing between segments for sentence boundaries; long pauses do not signal separate ideas
 		- Delete less precise sentence when subsumed by more precise statement
