@@ -1,7 +1,6 @@
 """HuggingFace CTC transcription audio source implementation."""
 
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 try:
     import torch
@@ -17,11 +16,6 @@ except ImportError:
     AutoModelForCTC = None
     AutoProcessor = None
     is_offline_mode = None
-
-try:
-    import pyrubberband as pyrb
-except ImportError:
-    pyrb = None
 
 from transcription.base import TranscriptionAudioSource
 from providers.registry import extract_model
@@ -52,11 +46,6 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
             model_identifier = model.name_or_path if hasattr(model, 'name_or_path') else str(model)
 
         super().__init__(config, model_identifier, supports_streaming=False, dtype='float32')
-
-        self.speed_factors = [0.80, 0.85, 0.90, 0.95]
-
-        if pyrb is None:
-            raise ImportError("pyrubberband library not installed. Install with: pip install pyrubberband")
 
         if isinstance(transcription_model_or_model, str):
             self._load_model(model_identifier)
@@ -106,48 +95,8 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
         """Transcribe audio using CTC phoneme recognition."""
         return self._process_audio(audio_data)
 
-    def format_output(self, text: str) -> str:
-        """
-        CTC output already contains TX tags with speed attributes.
-
-        Override base class to return text unchanged since multi-speed
-        results are pre-formatted with <tx speed="N%"> tags.
-
-        Args:
-            text: Pre-formatted text with TX tags
-
-        Returns:
-            Text unchanged
-        """
-        return text
-
-    def _process_audio_at_speed(self, audio_data: np.ndarray, speed_factor: float) -> str:
-        """Process audio at a specific speed and return raw phonemes."""
-        try:
-            if speed_factor != 1.0:
-                stretched_audio = pyrb.time_stretch(audio_data, self.config.sample_rate, speed_factor)
-            else:
-                stretched_audio = audio_data
-
-            with torch.no_grad():
-                input_values = self.processor(
-                    stretched_audio,
-                    sampling_rate=self.config.sample_rate,
-                    return_tensors="pt"
-                ).input_values
-
-                logits = self.model(input_values).logits
-                predicted_ids = torch.argmax(logits, dim=-1)
-                raw_output = self.processor.batch_decode(predicted_ids)[0]
-
-                return raw_output
-
-        except Exception as e:
-            pr_err(f"Error processing audio at speed {speed_factor}: {e}")
-            return ""
-
     def _process_audio(self, audio_data: np.ndarray) -> str:
-        """Process complete audio data with CTC model at multiple speeds."""
+        """Process single audio variant with CTC model."""
         try:
             if len(audio_data) == 0:
                 return ""
@@ -159,41 +108,19 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
                 pr_warn(f"Audio too short for CTC model")
                 return ""
 
-            results = []
-            seen_phonemes = set()
-            speed_results = {}
+            with torch.no_grad():
+                input_values = self.processor(
+                    audio_data,
+                    sampling_rate=self.config.sample_rate,
+                    return_tensors="pt"
+                ).input_values
 
-            with ThreadPoolExecutor(max_workers=len(self.speed_factors)) as executor:
-                future_to_speed = {
-                    executor.submit(self._process_audio_at_speed, audio_data, speed): speed
-                    for speed in self.speed_factors
-                }
+                logits = self.model(input_values).logits
+                predicted_ids = torch.argmax(logits, dim=-1)
+                raw_output = self.processor.batch_decode(predicted_ids)[0]
 
-                for future in as_completed(future_to_speed):
-                    speed_factor = future_to_speed[future]
-                    try:
-                        raw_phonemes = future.result()
-                        speed_results[speed_factor] = raw_phonemes
-                    except Exception as e:
-                        pr_err(f"Error processing speed {speed_factor}: {e}")
-                        speed_results[speed_factor] = ""
-
-            for speed_factor in self.speed_factors:
-                raw_output = speed_results.get(speed_factor, "")
-                if raw_output:
-                    if raw_output not in seen_phonemes:
-                        seen_phonemes.add(raw_output)
-                        speed_pct = int(speed_factor * 100)
-                        results.append(f'<tx speed="{speed_pct}%">{raw_output}</tx>')
-                        pr_info(f"{speed_pct}% speed - {self.processor.output_format}: {raw_output}")
-                    else:
-                        speed_pct = int(speed_factor * 100)
-                        pr_info(f"{speed_pct}% speed - Skipped (duplicate of previous speed)")
-
-            if results:
-                return "\n".join(results)
-            else:
-                return ""
+                pr_info(f"{self.processor.output_format}: {raw_output}")
+                return raw_output
 
         except Exception as e:
             pr_err(f"Error processing audio with CTC model: {e}")

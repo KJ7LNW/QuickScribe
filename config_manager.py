@@ -60,6 +60,9 @@ class ConfigManager:
         self.min_peak_duration = 0.5  # seconds (also used as RMS window size)
         self.min_peak_duration_amplitude_threshold = 0.01  # 1% of int16 range for RMS peaks
 
+        # Audio speed factors for time-stretching variants
+        self.audio_speed_factors: list[float] = [1.0]  # Default: single speed (100%)
+
         # Load environment variables
         script_dir = os.path.dirname(__file__)
         dotenv_path = os.path.join(script_dir, '.env')
@@ -303,6 +306,12 @@ class ConfigManager:
             default=350,
             help="Delay in milliseconds to continue recording after trigger release (default: 350ms)."
         )
+        parser.add_argument(
+            "--audio-speed-factors", "-S",
+            type=str,
+            default="100",
+            help="Comma-separated speed percentages for audio time-stretching (e.g., '80,90,100'). Default: 100 (no variants)."
+        )
         return parser
     
     def handle_interactive_mode(self):
@@ -380,6 +389,17 @@ class ConfigManager:
         self.chunk_timeout = args.chunk_timeout
         self.http_timeout = args.http_timeout
         self.retry_count = args.retry_count
+
+        # Audio speed factors parsing
+        speed_str = getattr(args, 'audio_speed_factors', '100')
+        try:
+            self.audio_speed_factors = [
+                float(s.strip()) / 100.0
+                for s in speed_str.split(',')
+            ]
+        except ValueError:
+            pr_err(f"Invalid speed factors: {speed_str}")
+            self.audio_speed_factors = [1.0]
 
     def parse_configuration(self):
         """Parse configuration from command line arguments or interactive mode."""

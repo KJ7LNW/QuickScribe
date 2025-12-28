@@ -149,12 +149,24 @@ class AbstractProvider(ABC):
         Returns:
             Input explanation string with transcription guidance
         """
-        return (
+        # Detect multiple speed variants
+        speed_tag_count = text_data.count('<tx speed="')
+        has_multiple_speeds = speed_tag_count > 1
+
+        base_explanation = (
             f"NEW INPUT (requires processing):\n"
             f"Mechanical transcription: {text_data}\n\n"
             "CRITICAL: The 'mechanical transcription' above is raw output "
             "from automatic speech recognition. Treat as audio input and follow system instructions."
         )
+
+        if has_multiple_speeds:
+            base_explanation += (
+                f"\n\nNOTE: {speed_tag_count} speed variants provided (indicated by speed=\"N%\" attributes). "
+                "Use these variants for disambiguation when transcription is ambiguous."
+            )
+
+        return base_explanation
 
     def is_initialized(self) -> bool:
         """Check if provider is initialized."""

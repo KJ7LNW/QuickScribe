@@ -61,7 +61,7 @@ class TestHuggingFaceTranscriptionAudioSourceMocked(unittest.TestCase):
             patch('transcription.implementations.huggingface.ctc.audio_source.torch', self.torch_mock),
             patch('transcription.implementations.huggingface.ctc.audio_source.transformers', self.transformers_mock),
             patch('transcription.implementations.huggingface.ctc.audio_source.HuggingFaceCTCTranscriptionAudioSource._load_model', mock_load_model),
-            patch('transcription.implementations.huggingface.ctc.audio_source.pyrb', Mock())
+            patch('audio_signal_processing.pyrb', Mock())
         ]
 
         for patcher in self.patches:
@@ -129,25 +129,25 @@ class TestHuggingFaceTranscriptionAudioSourceMocked(unittest.TestCase):
         self.model_instance.assert_called()
 
     def test_stop_recording_with_audio(self):
-        """Test stop_recording returns AudioTextResult with phonemes."""
+        """Test stop_recording returns list of AudioDataResult with speed metadata."""
         from transcription.implementations.huggingface import HuggingFaceCTCTranscriptionAudioSource
-        from audio_source import AudioDataResult, AudioTextResult
+        from audio_source import AudioDataResult
 
         audio_source = HuggingFaceCTCTranscriptionAudioSource(self.config, "test_model")
 
-        # Mock the parent stop_recording to return AudioDataResult
+        # Mock the parent stop_recording to return list of AudioDataResult
         test_audio = np.random.random(16000).astype(np.float32)
-        mock_audio_result = AudioDataResult(test_audio, 16000)
+        mock_audio_results = [AudioDataResult(test_audio, 16000, speed_pct=100)]
 
-        with patch('microphone_audio_source.MicrophoneAudioSource.stop_recording', return_value=mock_audio_result):
-            # Mock the _transcribe_audio method
-            with patch.object(audio_source, '_transcribe_audio', return_value="t ɛ s t"):
-                result = audio_source.stop_recording()
+        with patch('microphone_audio_source.MicrophoneAudioSource.stop_recording', return_value=mock_audio_results):
+            results = audio_source.stop_recording()
 
-                self.assertIsInstance(result, AudioTextResult)
-                self.assertEqual(result.transcribed_text, "<tx>t ɛ s t</tx>")
-                self.assertEqual(result.sample_rate, 16000)
-                np.testing.assert_array_equal(result.audio_data, test_audio)
+            self.assertIsInstance(results, list)
+            self.assertEqual(len(results), 1)
+            self.assertIsInstance(results[0], AudioDataResult)
+            self.assertEqual(results[0].speed_pct, 100)
+            self.assertEqual(results[0].sample_rate, 16000)
+            np.testing.assert_array_equal(results[0].audio_data, test_audio)
 
     def test_reset_functionality(self):
         """Test that reset works (inherited from parent)."""
@@ -228,6 +228,8 @@ class TestErrorHandling(unittest.TestCase):
             with patch('transcription.implementations.huggingface.ctc.audio_source.transformers', None):
                 from transcription.implementations.huggingface import HuggingFaceCTCTranscriptionAudioSource
 
+                # pyrubberband check moved to audio_signal_processing module
+                # Check for torch/transformers ImportError instead
                 with self.assertRaises(ImportError):
                     HuggingFaceCTCTranscriptionAudioSource(self.config, "test_model")
 
@@ -245,7 +247,7 @@ class TestErrorHandling(unittest.TestCase):
         with patch('transcription.implementations.huggingface.ctc.audio_source.torch', Mock()):
             with patch('transcription.implementations.huggingface.ctc.audio_source.transformers', Mock()):
                 with patch('transcription.implementations.huggingface.ctc.audio_source.HuggingFaceCTCTranscriptionAudioSource._load_model', mock_load_model):
-                    with patch('transcription.implementations.huggingface.ctc.audio_source.pyrb', Mock()):
+                    with patch('audio_signal_processing.pyrb', Mock()):
                         from transcription.implementations.huggingface import HuggingFaceCTCTranscriptionAudioSource
 
                         audio_source = HuggingFaceCTCTranscriptionAudioSource(self.config, "test_model")

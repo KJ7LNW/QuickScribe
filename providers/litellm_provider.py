@@ -5,6 +5,12 @@ Handles: OpenAI, Anthropic, Gemini, Groq, OpenRouter via LiteLLM library.
 """
 from typing import Optional
 import numpy as np
+
+try:
+    import soundfile as sf
+except ImportError:
+    sf = None
+
 from .base_provider import AbstractProvider
 from .mapper_factory import MapperFactory
 from .litellm_utils import encode_audio_to_base64, extract_text, extract_reasoning, extract_thinking, extract_usage
@@ -68,6 +74,9 @@ class LiteLLMProvider(AbstractProvider):
             test_audio_silence_b64 = self._encode_audio_to_base64(test_audio_silence, self.config.sample_rate)
 
             # Load sumtest.wav for audio intelligence test
+            if sf is None:
+                raise ImportError("soundfile library not installed. Install with: pip install soundfile")
+
             import os
             sumtest_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'samples', 'sumtest.wav')
             sumtest_audio, sumtest_sr = sf.read(sumtest_path)
@@ -369,13 +378,15 @@ class LiteLLMProvider(AbstractProvider):
 
         # Build user content based on input type
         if audio_data is not None:
-            # Audio input
-            audio_b64 = self._encode_audio_to_base64(audio_data, context.sample_rate)
+            # Audio input - list of arrays (speed variants)
             user_content = []
-
             context_text = self._build_context_text(context)
             user_content.append({"type": "text", "text": context_text})
-            user_content.append({"type": "input_audio", "input_audio": {"data": audio_b64, "format": "wav"}})
+
+            # Encode each audio variant
+            for audio_array in audio_data:
+                audio_b64 = self._encode_audio_to_base64(audio_array, context.sample_rate)
+                user_content.append({"type": "input_audio", "input_audio": {"data": audio_b64, "format": "wav"}})
         else:
             # Text input (from transcription)
             context_text = self._build_context_text(context)

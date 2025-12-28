@@ -54,38 +54,35 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
 
     def format_output(self, text: str) -> str:
         """
-        Format transcription output with TX tags.
+        Format transcription output.
 
-        Template method for wrapping transcription result.
-        Subclasses may override for custom formatting (e.g., speed attributes).
+        Returns plain text without TX tags. TX tag wrapping with speed
+        attributes is handled by the caller (model_invocation_worker).
 
         Args:
             text: Transcribed text
 
         Returns:
-            Formatted text with TX tags
+            Plain text without XML wrapper
         """
-        result = ""
+        return text
 
-        if text:
-            result = f"<tx>{text}</tx>"
-
-        return result
-
-    def stop_recording(self) -> AudioResult:
+    def stop_recording(self) -> list[AudioResult]:
         """
         Stop recording and return audio data immediately.
 
         Transcription is deferred to worker thread to avoid blocking recording queue.
         Use transcribe_audio_data() in worker thread to perform transcription.
         """
-        audio_result = super().stop_recording()
+        audio_results = super().stop_recording()
 
         if self.chunk_handler and hasattr(self.chunk_handler, 'end_streaming'):
-            if hasattr(audio_result, 'audio_data') and len(audio_result.audio_data) > 0:
-                self.chunk_handler.end_streaming()
+            for result in audio_results:
+                if hasattr(result, 'audio_data') and len(result.audio_data) > 0:
+                    self.chunk_handler.end_streaming()
+                    break
 
-        return audio_result
+        return audio_results
 
     def transcribe_audio_data(self, audio_data: np.ndarray) -> str:
         """

@@ -102,6 +102,19 @@ class TestInstructionComposerCreation(unittest.TestCase):
             mock_args.max_tokens = None
             mock_args.top_p = 0.9
             mock_args.key = None
+            mock_args.audio_speed_factors = '100'
+            mock_args.chunk_timeout = 5.0
+            mock_args.http_timeout = 10.0
+            mock_args.retry_count = 3
+            mock_args.transcription_model = 'huggingface/facebook/wav2vec2-lv-60-espeak-cv-ft'
+            mock_args.transcription_lang = 'en'
+            mock_args.sigusr1_mode = 'dictate'
+            mock_args.sigusr2_mode = 'shell'
+            mock_args.mic_release_delay = 350
+            mock_args.min_recording_duration = 0.7
+            mock_args.audio_amplitude_threshold = 0.03
+            mock_args.min_peak_duration_amplitude_threshold = 0.01
+            mock_args.min_peak_duration = 0.5
 
             mock_parser.parse_args.return_value = mock_args
             mock_setup_parser.return_value = mock_parser

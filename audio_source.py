@@ -18,9 +18,10 @@ class AudioResult:
 class AudioDataResult(AudioResult):
     """Result containing raw audio data."""
 
-    def __init__(self, audio_data: np.ndarray, sample_rate: int):
+    def __init__(self, audio_data: np.ndarray, sample_rate: int, speed_pct: int = 100):
         super().__init__("audio_data", sample_rate)
         self.audio_data = audio_data
+        self.speed_pct = speed_pct
 
 
 class AudioFileResult(AudioResult):

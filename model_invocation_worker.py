@@ -17,7 +17,7 @@ def _is_transcription_insufficient(text: Optional[str]) -> bool:
     return text is None or text == '<none>' or text.strip() == ''
 
 
-def invoke_model_for_session(provider, session: ProcessingSession, result: AudioResult):
+def invoke_model_for_session(provider, session: ProcessingSession, results: list[AudioResult]):
     """
     Thread worker that invokes model and writes chunks to session queue.
 
@@ -30,28 +30,46 @@ def invoke_model_for_session(provider, session: ProcessingSession, result: Audio
         return
 
     try:
+        # Dispatch logic: transcription mode vs raw mode
+        # Transcription mode: each audio variant is transcribed separately,
+        #   results are wrapped with speed-tagged TX elements and combined
+        # Raw mode: all audio variants passed directly to provider (for multimodal models)
+        if provider.config.is_transcription_mode():
+            transcriptions = []
+            seen_texts = set()
 
-        # Deferred transcription: transcribe AudioDataResult in transcription mode
-        if provider.config.is_transcription_mode() and isinstance(result, AudioDataResult):
-            transcribed_text = provider.audio_processor.transcribe_audio_data(result.audio_data)
+            for result in results:
+                if isinstance(result, AudioDataResult):
+                    text = provider.audio_processor.transcribe_audio_data(result.audio_data)
+                    if not _is_transcription_insufficient(text):
+                        if text not in seen_texts:
+                            seen_texts.add(text)
+                            transcriptions.append(f'<tx speed="{result.speed_pct}%">{text}</tx>')
+                elif isinstance(result, AudioTextResult):
+                    if not _is_transcription_insufficient(result.transcribed_text):
+                        if result.transcribed_text not in seen_texts:
+                            seen_texts.add(result.transcribed_text)
+                            speed_pct = getattr(result, 'speed_pct', 100)
+                            transcriptions.append(f'<tx speed="{speed_pct}%">{result.transcribed_text}</tx>')
 
-            if _is_transcription_insufficient(transcribed_text):
+            if not transcriptions:
                 pr_warn("Skipping model invocation: insufficient transcription from audio")
                 session.chunks_complete.set()
                 return
 
-            _invoke_model(provider, session, text_data=transcribed_text)
-        elif isinstance(result, AudioDataResult):
-            _invoke_model(provider, session, audio_data=result.audio_data)
-        elif isinstance(result, AudioTextResult):
-            if _is_transcription_insufficient(result.transcribed_text):
-                pr_warn("Skipping model invocation: insufficient transcription from audio")
-                session.chunks_complete.set()
-                return
+            combined_text = '\n'.join(transcriptions)
+            _invoke_model(provider, session, text_data=combined_text)
 
-            _invoke_model(provider, session, text_data=result.transcribed_text)
+        # Raw mode: pass all audio variants
         else:
-            raise TypeError(f"Unsupported audio result type: {type(result)}")
+            audio_arrays = [r.audio_data for r in results if isinstance(r, AudioDataResult)]
+            if not audio_arrays:
+                pr_warn("Skipping model invocation: no audio data in results")
+                session.chunks_complete.set()
+                return
+
+            _invoke_model(provider, session, audio_data=audio_arrays)
+
     except Exception as e:
         pr_err(f"Error in invoke_model_for_session: {e}")
         session.chunks_complete.set()

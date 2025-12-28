@@ -142,11 +142,11 @@ def test_processing_coordinator_validates_empty_results():
     app = MockApp()
     coordinator = ProcessingCoordinator(None, None, config, app)
 
-    empty_result = AudioDataResult(audio_data=np.array([], dtype=np.int16), sample_rate=16000)
-    assert coordinator._validate_audio_recording(empty_result) is False
+    empty_results = [AudioDataResult(audio_data=np.array([], dtype=np.int16), sample_rate=16000)]
+    assert coordinator._validate_audio_results(empty_results) is False
 
-    valid_result = AudioDataResult(audio_data=np.array([100, 200], dtype=np.int16), sample_rate=16000)
-    assert coordinator._validate_audio_recording(valid_result) is True
+    valid_results = [AudioDataResult(audio_data=np.array([100, 200], dtype=np.int16), sample_rate=16000)]
+    assert coordinator._validate_audio_results(valid_results) is True
 
 
 def test_validation_with_intermittent_peaks():

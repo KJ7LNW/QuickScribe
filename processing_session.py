@@ -16,11 +16,11 @@ class ProcessingSession:
         self,
         recording_session: RecordingSession,
         context: ConversationContext,
-        audio_result: AudioResult
+        audio_results: list[AudioResult]
     ):
         self.recording_session: RecordingSession = recording_session
         self.context: ConversationContext = context
-        self.audio_result: AudioResult = audio_result
+        self.audio_results: list[AudioResult] = audio_results
         self.chunk_queue: queue.Queue = queue.Queue()
         self.chunks_complete: threading.Event = threading.Event()
         self.window_activated: threading.Event = threading.Event()

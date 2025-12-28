@@ -40,7 +40,7 @@ class RecordingCoordinator:
         self.app._update_tray_state(AppState.RECORDING)
         return True
 
-    def stop_recording(self) -> tuple[RecordingSession, Optional[AudioResult], ConversationContext]:
+    def stop_recording(self) -> tuple[RecordingSession, Optional[list[AudioResult]], ConversationContext]:
         """Stop recording and return session, result, and context."""
         if not self._current_session:
             return (None, None, ConversationContext("", "", self.config.sample_rate))

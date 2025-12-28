@@ -36,47 +36,48 @@ class ProcessingCoordinator:
     def process_recording_result(
         self,
         session: RecordingSession,
-        result: Optional[AudioResult],
+        results: Optional[list[AudioResult]],
         context: ConversationContext
     ):
         """Process recording result and orchestrate session handling."""
-        if not result:
+        if not results:
             self.app._return_to_idle()
             return
 
-        if not self._validate_audio_recording(result):
+        if not self._validate_audio_results(results):
             self.app._return_to_idle()
             return
 
         self.app._update_tray_state(AppState.PROCESSING)
-        processing_session = ProcessingSession(session, context, result)
+        processing_session = ProcessingSession(session, context, results)
         self.session_queue.enqueue(processing_session)
 
         from model_invocation_worker import invoke_model_for_session
         threading.Thread(
             target=invoke_model_for_session,
-            args=(self.provider, processing_session, result),
+            args=(self.provider, processing_session, results),
             daemon=True
         ).start()
 
         self.app._show_recording_prompt()
 
-    def _validate_audio_recording(self, result: AudioResult) -> bool:
+    def _validate_audio_results(self, results: list[AudioResult]) -> bool:
         """
-        Validate audio result is not empty.
+        Validate audio results are not all empty.
 
         Returns:
-            True if recording has content, False if empty
+            True if any result has content, False if all empty
         """
-        if isinstance(result, AudioDataResult):
-            if len(result.audio_data) == 0:
-                return False
+        for result in results:
+            if isinstance(result, AudioDataResult):
+                if len(result.audio_data) > 0:
+                    return True
 
-        if isinstance(result, AudioTextResult):
-            if not result.transcribed_text:
-                return False
+            if isinstance(result, AudioTextResult):
+                if result.transcribed_text:
+                    return True
 
-        return True
+        return False
 
     def shutdown(self):
         """Shutdown the session queue."""

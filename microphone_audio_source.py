@@ -7,6 +7,7 @@ import sys
 import time
 from typing import Optional
 from audio_source import AudioSource, AudioResult, AudioDataResult, AudioChunkHandler, DefaultAudioChunkHandler
+from audio_signal_processing import stretch_audio_parallel
 from lib.pr_log import pr_emerg, pr_err, pr_warn, pr_info, pr_debug
 
 
@@ -111,14 +112,14 @@ class MicrophoneAudioSource(AudioSource):
             self._is_recording = False
             self.recording_stream = None
 
-    def stop_recording(self) -> AudioResult:
+    def stop_recording(self) -> list[AudioResult]:
         """Stops recording and returns the audio result."""
         if not self._is_recording:
-            # Return empty result if not recording
-            return AudioDataResult(
+            # Return empty result list if not recording
+            return [AudioDataResult(
                 audio_data=np.array([], dtype=self.dtype),
                 sample_rate=self.config.sample_rate
-            )
+            )]
 
         pr_info("Stopped. Processing...")
         recording_epoch = self.stream_epoch
@@ -149,38 +150,48 @@ class MicrophoneAudioSource(AudioSource):
 
         if not audio_data:
             pr_info("No audio data recorded.")
-            return AudioDataResult(
+            return [AudioDataResult(
                 audio_data=np.array([], dtype=self.dtype),
                 sample_rate=self.config.sample_rate
-            )
+            )]
 
         try:
             full_audio = np.concatenate(audio_data, axis=0)
         except ValueError as e:
             pr_err(f"Error concatenating audio data: {e}")
-            return AudioDataResult(
+            return [AudioDataResult(
                 audio_data=np.array([], dtype=self.dtype),
                 sample_rate=self.config.sample_rate
-            )
+            )]
         except Exception as e:
             pr_err(f"Unexpected error combining audio: {e}")
-            return AudioDataResult(
+            return [AudioDataResult(
                 audio_data=np.array([], dtype=self.dtype),
                 sample_rate=self.config.sample_rate
-            )
+            )]
 
         pr_debug(f"Audio data: chunks={len(audio_data)} shape={full_audio.shape} dtype={full_audio.dtype} min={np.min(full_audio)} max={np.max(full_audio)} samples={len(full_audio)}")
 
         if not self._validate_recording(full_audio):
-            return AudioDataResult(
+            return [AudioDataResult(
                 audio_data=np.array([], dtype=self.dtype),
                 sample_rate=self.config.sample_rate
-            )
+            )]
 
-        return AudioDataResult(
-            audio_data=full_audio,
-            sample_rate=self.config.sample_rate
-        )
+        # Generate audio variants at configured speeds in parallel
+        results = []
+        for speed_pct, stretched_audio in stretch_audio_parallel(
+            full_audio,
+            self.config.sample_rate,
+            self.config.audio_speed_factors
+        ):
+            results.append(AudioDataResult(
+                audio_data=stretched_audio,
+                sample_rate=self.config.sample_rate,
+                speed_pct=speed_pct
+            ))
+
+        return results
 
     def is_recording(self) -> bool:
         """Check if currently recording."""
