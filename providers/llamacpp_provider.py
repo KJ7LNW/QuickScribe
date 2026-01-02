@@ -136,7 +136,7 @@ class LlamaCppProvider(AbstractProvider):
 
         pr_debug("-" * 60)
 
-    def _extract_text(self, chunk) -> Optional[str]:
+    def extract_text(self, chunk) -> Optional[str]:
         """Extract text from streaming chunk."""
         if not chunk:
             return None
@@ -150,15 +150,15 @@ class LlamaCppProvider(AbstractProvider):
 
         return content
 
-    def _extract_reasoning(self, chunk) -> Optional[str]:
+    def extract_reasoning(self, chunk) -> Optional[str]:
         """No reasoning in llama.cpp models."""
         return None
 
-    def _extract_thinking(self, chunk) -> Optional[list]:
+    def extract_thinking(self, chunk) -> Optional[list]:
         """No thinking blocks in llama.cpp models."""
         return None
 
-    def _extract_usage(self, chunk) -> Optional[dict]:
+    def extract_usage(self, chunk) -> Optional[dict]:
         """Extract usage statistics if available."""
         if not chunk:
             return None

@@ -12,6 +12,7 @@ import numpy as np
 import time
 import sys
 from .conversation_context import ConversationContext
+from .litellm_utils import stream_response
 from instruction_composer import InstructionComposer
 from lib.pr_log import (
     pr_emerg, pr_alert, pr_crit, pr_err, pr_warn, pr_notice, pr_info, pr_debug,
@@ -103,19 +104,19 @@ class AbstractProvider(ABC):
         """
         pass
 
-    def _extract_text(self, chunk) -> Optional[str]:
+    def extract_text(self, chunk) -> Optional[str]:
         """Extract text content from response chunk."""
         return None
 
-    def _extract_reasoning(self, chunk) -> Optional[str]:
+    def extract_reasoning(self, chunk) -> Optional[str]:
         """Extract reasoning content from response chunk."""
         return None
 
-    def _extract_usage(self, chunk) -> Optional[dict]:
+    def extract_usage(self, chunk) -> Optional[dict]:
         """Extract usage statistics from response chunk."""
         return None
 
-    def _extract_thinking(self, chunk) -> Optional[list]:
+    def extract_thinking(self, chunk) -> Optional[list]:
         """Extract thinking blocks from response chunk."""
         return None
 
@@ -183,55 +184,32 @@ class AbstractProvider(ABC):
         - Tracks timing
         """
         pr_info("RECEIVED FROM MODEL (streaming):")
-        accumulated_text = ""
-        usage_data = None
-        last_chunk = None
-        reasoning_header_shown = False
-        thinking_header_shown = False
-        output_header_shown = False
+
+        terminated = False
+
+        def on_chunk(chunk_type: str, content, accumulated_text: str):
+            nonlocal terminated
+
+            if chunk_type == 'reasoning' or chunk_type == 'thinking':
+                if streaming_callback:
+                    streaming_callback(('keepalive', None))
+            elif chunk_type == 'text':
+                self.mark_first_response()
+                if streaming_callback:
+                    streaming_callback(content)
+                if '</xml>' in accumulated_text:
+                    terminated = True
+                    return False
+            elif chunk_type == 'usage':
+                pass
+            else:
+                raise ValueError(f"Unexpected chunk_type: {chunk_type}")
 
         try:
-            with get_streaming_handler() as stream:
-                for chunk in response:
-                    last_chunk = chunk
+            accumulated_text, usage_data, last_chunk = stream_response(response, self, on_chunk)
 
-                    reasoning = self._extract_reasoning(chunk)
-                    if reasoning is not None:
-                        if not reasoning_header_shown:
-                            pr_notice("[REASONING]")
-                            reasoning_header_shown = True
-                        stream.write(reasoning)
-                        if streaming_callback:
-                            streaming_callback(('keepalive', None))
-
-                    thinking = self._extract_thinking(chunk)
-                    if thinking is not None:
-                        if not thinking_header_shown:
-                            pr_notice("[THINKING]")
-                            thinking_header_shown = True
-                        for block in thinking:
-                            if 'thinking' in block:
-                                stream.write(block['thinking'])
-                        if streaming_callback:
-                            streaming_callback(('keepalive', None))
-
-                    text = self._extract_text(chunk)
-                    if text is not None:
-                        if not output_header_shown:
-                            pr_notice("[OUTPUT]")
-                            output_header_shown = True
-                        self.mark_first_response()
-                        stream.write(text)
-                        if streaming_callback:
-                            streaming_callback(text)
-                        accumulated_text += text
-
-                        if '</xml>' in accumulated_text:
-                            raise TerminateStream()
-
-                    usage = self._extract_usage(chunk)
-                    if usage is not None:
-                        usage_data = usage
+            if terminated:
+                raise TerminateStream()
 
         except TerminateStream:
             self._close_response_stream(response)

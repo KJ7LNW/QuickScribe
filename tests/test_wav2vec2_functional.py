@@ -43,7 +43,6 @@ def test_model_instructions():
          mock.patch('transcription.implementations.huggingface.ctc.audio_source.transformers'), \
          mock.patch('transcription.implementations.huggingface.processor_utils.AutoProcessor'), \
          mock.patch('transcription.implementations.huggingface.ctc.audio_source.AutoModelForCTC'), \
-         mock.patch('transcription.implementations.huggingface.ctc.audio_source.pyrb'), \
          mock.patch('microphone_audio_source.MicrophoneAudioSource.__init__', return_value=None):
 
         from instruction_composer import InstructionComposer

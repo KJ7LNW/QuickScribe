@@ -220,18 +220,18 @@ class HuggingFaceProvider(AbstractProvider):
         pr_debug(f"Prompt: {content['tokens']} tokens, {len(content['prompt'])} chars")
         pr_debug("-" * 60)
 
-    def _extract_text(self, chunk) -> Optional[str]:
+    def extract_text(self, chunk) -> Optional[str]:
         """Extract text from chunk (already plain text)."""
         return chunk
 
-    def _extract_reasoning(self, chunk) -> Optional[str]:
+    def extract_reasoning(self, chunk) -> Optional[str]:
         """No reasoning in HuggingFace models."""
         return None
 
-    def _extract_thinking(self, chunk) -> Optional[list]:
+    def extract_thinking(self, chunk) -> Optional[list]:
         """No thinking blocks in HuggingFace models."""
         return None
 
-    def _extract_usage(self, chunk) -> Optional[dict]:
+    def extract_usage(self, chunk) -> Optional[dict]:
         """No usage statistics for local models."""
         return None

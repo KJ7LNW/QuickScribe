@@ -99,18 +99,18 @@ class NoneProvider(AbstractProvider):
 
         return result
 
-    def _extract_text(self, chunk) -> Optional[str]:
+    def extract_text(self, chunk) -> Optional[str]:
         """Extract text from chunk (already plain text)."""
         return chunk
 
-    def _extract_reasoning(self, chunk) -> Optional[str]:
+    def extract_reasoning(self, chunk) -> Optional[str]:
         """No reasoning in passthrough provider."""
         return None
 
-    def _extract_thinking(self, chunk) -> Optional[list]:
+    def extract_thinking(self, chunk) -> Optional[list]:
         """No thinking blocks in passthrough provider."""
         return None
 
-    def _extract_usage(self, chunk) -> Optional[dict]:
+    def extract_usage(self, chunk) -> Optional[dict]:
         """No usage statistics for passthrough provider."""
         return None

@@ -13,7 +13,13 @@ except ImportError:
 
 from .base_provider import AbstractProvider
 from .mapper_factory import MapperFactory
-from .litellm_utils import encode_audio_to_base64, extract_text, extract_reasoning, extract_thinking, extract_usage
+from .litellm_utils import (
+    encode_audio_to_base64,
+    litellm_extract_text,
+    litellm_extract_reasoning,
+    litellm_extract_thinking,
+    litellm_extract_usage
+)
 from lib.pr_log import (
     pr_emerg, pr_alert, pr_crit, pr_err, pr_warn, pr_notice, pr_info, pr_debug
 )
@@ -440,21 +446,21 @@ class LiteLLMProvider(AbstractProvider):
             pr_err(f"Error details: {str(e)}")
             raise
 
-    def _extract_text(self, chunk) -> Optional[str]:
+    def extract_text(self, chunk) -> Optional[str]:
         """Extract text content from LiteLLM response chunk."""
-        return extract_text(chunk)
+        return litellm_extract_text(chunk)
 
-    def _extract_reasoning(self, chunk) -> Optional[str]:
+    def extract_reasoning(self, chunk) -> Optional[str]:
         """Extract reasoning content from LiteLLM response chunk."""
-        return extract_reasoning(chunk)
+        return litellm_extract_reasoning(chunk)
 
-    def _extract_thinking(self, chunk) -> Optional[list]:
+    def extract_thinking(self, chunk) -> Optional[list]:
         """Extract thinking blocks from LiteLLM response chunk."""
-        return extract_thinking(chunk)
+        return litellm_extract_thinking(chunk)
 
-    def _extract_usage(self, chunk) -> Optional[dict]:
+    def extract_usage(self, chunk) -> Optional[dict]:
         """Extract usage statistics from LiteLLM response chunk."""
-        return extract_usage(chunk)
+        return litellm_extract_usage(chunk)
 
     def _display_user_content(self, user_content):
         """Display user content being sent to model."""

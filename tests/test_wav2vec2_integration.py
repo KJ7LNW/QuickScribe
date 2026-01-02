@@ -64,6 +64,11 @@ class MockConfig:
         self.model_id = "whisper-large-v3"
         self.trigger_key_name = None
         self.language = "en"
+        self.audio_source = "wav2vec"
+
+    def is_transcription_mode(self) -> bool:
+        """Check if transcription mode is active."""
+        return self.audio_source in ['transcribe', 'trans']
         self.enable_reasoning = False
         self.temperature = 0.7
         self.max_tokens = 1000
@@ -310,7 +315,7 @@ class TestWav2Vec2DictationAppIntegration(unittest.TestCase):
             processing_session = ProcessingSession(recording_session, context, phoneme_result)
 
             from model_invocation_worker import invoke_model_for_session
-            invoke_model_for_session(mock_provider, processing_session, phoneme_result)
+            invoke_model_for_session(mock_provider, processing_session, [phoneme_result])
 
             # Verify provider was called with phoneme text
             self.assertTrue(mock_provider.transcribe_called)
@@ -327,7 +332,6 @@ class TestWav2Vec2ProviderInstructions(unittest.TestCase):
              patch('transcription.implementations.huggingface.ctc.audio_source.transformers'), \
              patch('transcription.implementations.huggingface.processor_utils.AutoProcessor'), \
              patch('transcription.implementations.huggingface.ctc.audio_source.AutoModelForCTC'), \
-             patch('transcription.implementations.huggingface.ctc.audio_source.pyrb'), \
              patch('microphone_audio_source.MicrophoneAudioSource.__init__', return_value=None):
 
             # Load wav2vec2 audio source instructions
@@ -347,7 +351,6 @@ class TestWav2Vec2ProviderInstructions(unittest.TestCase):
              patch('transcription.implementations.huggingface.ctc.audio_source.transformers'), \
              patch('transcription.implementations.huggingface.processor_utils.AutoProcessor'), \
              patch('transcription.implementations.huggingface.ctc.audio_source.AutoModelForCTC'), \
-             patch('transcription.implementations.huggingface.ctc.audio_source.pyrb'), \
              patch('microphone_audio_source.MicrophoneAudioSource.__init__', return_value=None):
 
             # Load wav2vec2 audio source instructions

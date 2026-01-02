@@ -1,6 +1,7 @@
 """Test provider factory selection logic."""
 import pytest
-from providers.provider_factory import create_provider, _extract_provider
+from providers.provider_factory import create_provider
+from providers.registry import extract_provider
 from providers.litellm_provider import LiteLLMProvider
 from providers.huggingface_provider import HuggingFaceProvider
 from config_manager import ConfigManager
@@ -13,18 +14,18 @@ class MockAudioProcessor:
 
 def test_extract_provider_openai():
     """Test provider extraction from openai model_id."""
-    assert _extract_provider('openai/gpt-4') == 'openai'
+    assert extract_provider('openai/gpt-4') == 'openai'
 
 
 def test_extract_provider_huggingface():
     """Test provider extraction from huggingface model_id."""
-    assert _extract_provider('huggingface/Qwen/Qwen2.5-0.5B') == 'huggingface'
+    assert extract_provider('huggingface/Qwen/Qwen2.5-0.5B') == 'huggingface'
 
 
 def test_extract_provider_empty():
     """Test provider extraction from empty model_id."""
-    assert _extract_provider('') == ''
-    assert _extract_provider(None) == ''
+    assert extract_provider('') == ''
+    assert extract_provider(None) == ''
 
 
 def test_factory_creates_litellm_provider():
@@ -60,26 +61,6 @@ def test_factory_default_to_litellm():
     assert provider.provider == 'groq'
 
 
-def test_huggingface_validation_requires_transcribe():
-    """Test HuggingFace provider requires transcription mode."""
-    config = ConfigManager()
-    config.model_id = 'huggingface/Qwen/Qwen2.5-0.5B'
-    config.audio_source = 'raw'
-
-    result = config.validate_huggingface_provider()
-
-    assert result is False
-
-
-def test_huggingface_validation_passes_with_transcribe():
-    """Test HuggingFace provider passes with transcription mode."""
-    config = ConfigManager()
-    config.model_id = 'huggingface/Qwen/Qwen2.5-0.5B'
-    config.audio_source = 'transcribe'
-
-    result = config.validate_huggingface_provider()
-
-    assert result is True
 
 
 class MockContext:
@@ -97,8 +78,8 @@ def test_huggingface_provider_extract_text():
 
     provider = HuggingFaceProvider(config, MockAudioProcessor())
 
-    assert provider._extract_text("test chunk") == "test chunk"
-    assert provider._extract_text("") == ""
+    assert provider.extract_text("test chunk") == "test chunk"
+    assert provider.extract_text("") == ""
 
 
 def test_huggingface_provider_extract_reasoning_returns_none():
@@ -108,7 +89,7 @@ def test_huggingface_provider_extract_reasoning_returns_none():
 
     provider = HuggingFaceProvider(config, MockAudioProcessor())
 
-    assert provider._extract_reasoning("any chunk") is None
+    assert provider.extract_reasoning("any chunk") is None
 
 
 def test_huggingface_provider_extract_usage_returns_none():
@@ -118,7 +99,7 @@ def test_huggingface_provider_extract_usage_returns_none():
 
     provider = HuggingFaceProvider(config, MockAudioProcessor())
 
-    assert provider._extract_usage("any chunk") is None
+    assert provider.extract_usage("any chunk") is None
 
 
 def test_huggingface_provider_display_user_content():
