@@ -267,6 +267,8 @@ Resolve ambiguities:
 	- Apply mood and case:
 		- Apply subjunctive: mandative/optative/counterfactual contexts require base form in complement clauses
 		- Apply comparative case: nominative when predicate verb recoverable; accusative otherwise acceptable
+		- Detect imperative, modify transcription: sentence-initial base verb form without subject → period not question mark
+		- Detect interrogative, modify transcription: WH-word clause-initial or auxiliary-initial with subject-auxiliary inversion → question mark not period
 	- Eliminate terminal prepositions (restructure: "what for?"→"for what?")
 	- Repair comma splices
 	- Convert sentence-initial past participles to imperative by removing -ed/-en suffix; likely transcription error
