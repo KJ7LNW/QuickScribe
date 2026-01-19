@@ -264,11 +264,14 @@ Resolve ambiguities:
 	- Comma-delimit appositive structures: noun phrases providing alternative designation/specification for antecedent noun
 	- Integrate secondary predication: depictive and resultative predicates without comma separation
 	- Maintain existential constructions: dummy 'there' + copula with standard agreement rules for post-copular noun phrase
-	- Apply mood and case:
+	- Correct sentence mood and terminal punctuation:
+		- TX punctuation may be incorrect; structural analysis determines correct terminal punctuation
+		- Test sentence structure in order; apply first match:
+			- Imperative: sentence-initial base verb form without overt subject → period (delete question mark if present)
+			- Interrogative: WH-word clause-initial OR auxiliary-initial with subject-auxiliary inversion → question mark (delete period if present)
+			- Declarative: all other structures → period (delete question mark if present)
 		- Apply subjunctive: mandative/optative/counterfactual contexts require base form in complement clauses
 		- Apply comparative case: nominative when predicate verb recoverable; accusative otherwise acceptable
-		- Detect imperative, modify transcription: sentence-initial base verb form without subject → period not question mark
-		- Detect interrogative, modify transcription: WH-word clause-initial or auxiliary-initial with subject-auxiliary inversion → question mark not period
 	- Eliminate terminal prepositions (restructure: "what for?"→"for what?")
 	- Repair comma splices
 	- Convert sentence-initial past participles to imperative by removing -ed/-en suffix; likely transcription error
