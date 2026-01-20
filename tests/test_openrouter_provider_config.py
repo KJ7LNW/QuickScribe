@@ -21,7 +21,7 @@ def test_openrouter_provider_configuration():
     config.audio_source = 'raw'
     config.mode = 'dictate'
 
-    provider = create_provider(config, MockAudioProcessor())
+    provider = create_provider(config)
 
     assert provider.route == 'google-vertex'
     assert provider.provider == 'openrouter'
@@ -49,7 +49,7 @@ def test_openrouter_different_provider_names():
 
     for provider_name in provider_names:
         config.model_id = f'openrouter/test/model@{provider_name}'
-        provider = create_provider(config, MockAudioProcessor())
+        provider = create_provider(config)
 
         result = provider.mapper.map_route_to_completion_params(provider_name)
 
@@ -65,7 +65,7 @@ def test_openrouter_no_route_specified():
     config.audio_source = 'raw'
     config.mode = 'dictate'
 
-    provider = create_provider(config, MockAudioProcessor())
+    provider = create_provider(config)
 
     assert provider.route is None
     assert provider.provider == 'openrouter'

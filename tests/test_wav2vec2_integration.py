@@ -65,10 +65,6 @@ class MockConfig:
         self.trigger_key_name = None
         self.language = "en"
         self.audio_source = "wav2vec"
-
-    def is_transcription_mode(self) -> bool:
-        """Check if transcription mode is active."""
-        return self.audio_source in ['transcribe', 'trans']
         self.enable_reasoning = False
         self.temperature = 0.7
         self.max_tokens = 1000
@@ -77,7 +73,10 @@ class MockConfig:
         self.chunk_timeout = 3.0
         self.http_timeout = 10.0
         self.retry_count = 3
-        self.audio_source = "wav2vec"
+
+    def is_transcription_mode(self) -> bool:
+        """Check if transcription mode is active."""
+        return self.audio_source in ['transcribe', 'trans']
 
 
 class TestWav2Vec2DictationAppIntegration(unittest.TestCase):
@@ -166,9 +165,10 @@ class TestWav2Vec2DictationAppIntegration(unittest.TestCase):
             self.assertIsNotNone(app.audio_source.model_identifier)
 
     def test_wav2vec2_audio_source_text_flow(self):
-        """Test complete flow from Wav2Vec2 to provider text processing."""
+        """Test complete flow from Wav2Vec2 recording to transcription."""
         from transcription.implementations.huggingface import HuggingFaceCTCTranscriptionAudioSource
-        from audio_source import AudioTextResult, AudioDataResult
+        from audio_source import AudioDataResult
+        from transcription.types import TranscriptionInput, TranscriptionResult
 
         # Mock dependencies
         with patch('transcription.implementations.huggingface.processor_utils.AutoProcessor') as mock_auto_processor, \
@@ -186,9 +186,9 @@ class TestWav2Vec2DictationAppIntegration(unittest.TestCase):
             model_instance.return_value.logits = Mock()
             processor_instance.batch_decode.return_value = ["h ɛ l oʊ w ɜː l d"]
 
-            # Mock audio result
+            # Mock audio result list (stop_recording returns list[AudioResult])
             test_audio = np.array([0.1, 0.2, 0.3])
-            mock_audio_result = AudioDataResult(test_audio, self.config.sample_rate)
+            mock_audio_results = [AudioDataResult(test_audio, self.config.sample_rate)]
 
             # Create audio source
             audio_source = HuggingFaceCTCTranscriptionAudioSource(self.config, "test_model")
@@ -198,17 +198,24 @@ class TestWav2Vec2DictationAppIntegration(unittest.TestCase):
             audio_source.chunk_handler = None
             audio_source.dtype = 'float32'
 
-            # Mock the parent stop_recording to return AudioDataResult
-            with patch('microphone_audio_source.MicrophoneAudioSource.stop_recording', return_value=mock_audio_result):
-                # Skip chunk processing since we removed the handler - audio processing happens in stop_recording
+            # Mock the parent stop_recording to return list of AudioDataResult
+            with patch('microphone_audio_source.MicrophoneAudioSource.stop_recording', return_value=mock_audio_results):
+                # Stop recording returns audio data (transcription deferred to worker)
+                results = audio_source.stop_recording()
 
-                # Stop recording and get result
-                result = audio_source.stop_recording()
+                # Verify stop_recording returns list of AudioDataResult
+                self.assertIsInstance(results, list)
+                self.assertEqual(len(results), 1)
+                self.assertIsInstance(results[0], AudioDataResult)
+                self.assertEqual(results[0].sample_rate, 16000)
 
-                # Verify result
-                self.assertIsInstance(result, AudioTextResult)
-                # The mock will return empty string since no real processing
-                self.assertEqual(result.sample_rate, 16000)
+            # Transcription happens separately via transcribe_audio_data
+            input = TranscriptionInput(test_audio, self.config.sample_rate, 100)
+            with patch.object(audio_source, '_transcribe_audio', return_value="h ɛ l oʊ w ɜː l d"):
+                tr_result = audio_source.transcribe_audio_data(input)
+                self.assertIsInstance(tr_result, TranscriptionResult)
+                self.assertEqual(tr_result.speed_pct, 100)
+                self.assertIsNone(tr_result.error)
 
     @patch('input_coordinator.signal', Mock())
     def test_audio_source_selection_priority(self):
@@ -314,12 +321,18 @@ class TestWav2Vec2DictationAppIntegration(unittest.TestCase):
             context = app.recording_coordinator._get_conversation_context()
             processing_session = ProcessingSession(recording_session, context, phoneme_result)
 
-            from model_invocation_worker import invoke_model_for_session
-            invoke_model_for_session(mock_provider, processing_session, [phoneme_result])
+            # Mock transcription_source (not used for AudioTextResult but required parameter)
+            mock_transcription_source = Mock()
 
-            # Verify provider was called with phoneme text
+            # Enable transcription mode so AudioTextResult is processed
+            mock_provider.config.audio_source = 'trans'
+
+            from model_invocation_worker import invoke_model_for_session
+            invoke_model_for_session(mock_provider, mock_transcription_source, processing_session, [phoneme_result])
+
+            # Verify provider was called with phoneme text wrapped in tx tag
             self.assertTrue(mock_provider.transcribe_called)
-            self.assertEqual(mock_provider.last_text_data, "h ɛ l oʊ w ɜː l d")
+            self.assertEqual(mock_provider.last_text_data, '<tx speed="100%">h ɛ l oʊ w ɜː l d</tx>')
 
 
 class TestWav2Vec2ProviderInstructions(unittest.TestCase):

@@ -33,7 +33,7 @@ def test_factory_creates_litellm_provider():
     config = ConfigManager()
     config.model_id = 'openai/gpt-4'
 
-    provider = create_provider(config, MockAudioProcessor())
+    provider = create_provider(config)
 
     assert isinstance(provider, LiteLLMProvider)
     assert provider.provider == 'openai'
@@ -44,7 +44,7 @@ def test_factory_creates_huggingface_provider():
     config = ConfigManager()
     config.model_id = 'huggingface/Qwen/Qwen2.5-0.5B'
 
-    provider = create_provider(config, MockAudioProcessor())
+    provider = create_provider(config)
 
     assert isinstance(provider, HuggingFaceProvider)
     assert provider.provider == 'huggingface'
@@ -55,7 +55,7 @@ def test_factory_default_to_litellm():
     config = ConfigManager()
     config.model_id = 'groq/llama-3.3-70b-versatile'
 
-    provider = create_provider(config, MockAudioProcessor())
+    provider = create_provider(config)
 
     assert isinstance(provider, LiteLLMProvider)
     assert provider.provider == 'groq'
@@ -76,7 +76,7 @@ def test_huggingface_provider_extract_text():
     config = ConfigManager()
     config.model_id = 'huggingface/test/model'
 
-    provider = HuggingFaceProvider(config, MockAudioProcessor())
+    provider = HuggingFaceProvider(config)
 
     assert provider.extract_text("test chunk") == "test chunk"
     assert provider.extract_text("") == ""
@@ -87,7 +87,7 @@ def test_huggingface_provider_extract_reasoning_returns_none():
     config = ConfigManager()
     config.model_id = 'huggingface/test/model'
 
-    provider = HuggingFaceProvider(config, MockAudioProcessor())
+    provider = HuggingFaceProvider(config)
 
     assert provider.extract_reasoning("any chunk") is None
 
@@ -97,7 +97,7 @@ def test_huggingface_provider_extract_usage_returns_none():
     config = ConfigManager()
     config.model_id = 'huggingface/test/model'
 
-    provider = HuggingFaceProvider(config, MockAudioProcessor())
+    provider = HuggingFaceProvider(config)
 
     assert provider.extract_usage("any chunk") is None
 
@@ -107,7 +107,7 @@ def test_huggingface_provider_display_user_content():
     config = ConfigManager()
     config.model_id = 'huggingface/test/model'
 
-    provider = HuggingFaceProvider(config, MockAudioProcessor())
+    provider = HuggingFaceProvider(config)
 
     content = {
         'messages': [

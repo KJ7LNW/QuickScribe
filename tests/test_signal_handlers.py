@@ -48,6 +48,7 @@ class TestSignalHandlers:
 
         self.app.processing_coordinator = ProcessingCoordinator(
             self.app.provider,
+            self.app.audio_source,
             self.app.transcription_service,
             self.config,
             self.app

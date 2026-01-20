@@ -49,19 +49,13 @@ class AbstractProvider(ABC):
     - _extract_usage(): Extract usage statistics (optional)
     """
 
-    def __init__(self, config, audio_processor):
-        if audio_processor is None:
-            raise ValueError("audio_processor is required and cannot be None")
-
+    def __init__(self, config):
         self.config = config
         self._initialized = False
 
         # Timing tracking
         self.model_start_time = None
         self.first_response_time = None
-
-        # Audio processor for instruction injection
-        self.audio_processor = audio_processor
 
         # Instruction composition
         self.instruction_composer = InstructionComposer()

@@ -60,7 +60,7 @@ def test_base_provider_integration():
     class MockAudio:
         pass
 
-    provider = LiteLLMProvider(config, MockAudio())
+    provider = LiteLLMProvider(config)
 
     assert provider.provider == 'openrouter'
     assert provider.mapper is not None
@@ -80,7 +80,7 @@ def test_routing_provider_extraction():
     class MockAudio:
         pass
 
-    provider = LiteLLMProvider(config, MockAudio())
+    provider = LiteLLMProvider(config)
 
     assert provider.provider == 'openrouter'
     assert provider.mapper is not None

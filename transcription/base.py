@@ -7,6 +7,7 @@ from abc import abstractmethod
 from typing import Optional
 from audio_source import AudioResult, AudioTextResult, AudioChunkHandler
 from microphone_audio_source import MicrophoneAudioSource
+from transcription.types import TranscriptionInput, TranscriptionResult
 
 sys.path.insert(0, 'lib')
 from pr_log import pr_info
@@ -84,7 +85,7 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
 
         return audio_results
 
-    def transcribe_audio_data(self, audio_data: np.ndarray) -> str:
+    def transcribe_audio_data(self, input: TranscriptionInput) -> TranscriptionResult:
         """
         Transcribe audio data to formatted text.
 
@@ -92,25 +93,28 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
         Handles timing measurements and output formatting.
 
         Args:
-            audio_data: Audio data array
+            input: TranscriptionInput containing audio_data, sample_rate, speed_pct
 
         Returns:
-            Formatted transcription text with TX tags
+            TranscriptionResult with text, speed_pct, duration_ms, error
         """
-        if len(audio_data) == 0:
-            return ""
+        if len(input.audio_data) == 0:
+            return TranscriptionResult("", input.speed_pct, 0, None)
 
         pr_info(f"Transcribing with {self.model_identifier}...")
 
-        transcription_start_time = time.time()
-        transcribed_text = self._transcribe_audio(audio_data)
-        transcription_end_time = time.time()
+        start_time = time.time()
 
-        elapsed_ms = int((transcription_end_time - transcription_start_time) * 1000)
-        pr_info(f"Transcription completed ({elapsed_ms}ms)")
+        try:
+            transcribed_text = self._transcribe_audio(input.audio_data)
+            duration_ms = int((time.time() - start_time) * 1000)
+            pr_info(f"Transcription completed ({duration_ms}ms)")
+            formatted_text = self.format_output(transcribed_text)
+            return TranscriptionResult(formatted_text, input.speed_pct, duration_ms, None)
 
-        formatted_text = self.format_output(transcribed_text)
-        return formatted_text
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            return TranscriptionResult("", input.speed_pct, duration_ms, str(e))
 
     @staticmethod
     def normalize_to_float32(audio_data: np.ndarray) -> np.ndarray:

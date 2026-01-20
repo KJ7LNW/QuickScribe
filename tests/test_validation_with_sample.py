@@ -69,7 +69,7 @@ def test_sample_file(filepath):
 
     config = ConfigManager()
     app = MockApp()
-    coordinator = ProcessingCoordinator(None, None, config, app)
+    coordinator = ProcessingCoordinator(None, None, None, config, app)
 
     audio_data, sample_rate = load_wav_file(filepath)
 

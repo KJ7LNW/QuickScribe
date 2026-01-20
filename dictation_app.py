@@ -69,8 +69,7 @@ class DictationApp:
     def _initialize_provider_client(self):
         """Initialize the provider client based on the selected provider."""
         try:
-            # Pass audio_source to provider for instruction injection
-            self.provider = create_provider(self.config, self.audio_source)
+            self.provider = create_provider(self.config)
 
             # Provider should never be None now
             if self.provider is None:
@@ -112,6 +111,7 @@ class DictationApp:
 
         self.processing_coordinator = ProcessingCoordinator(
             self.provider,
+            self.audio_source,
             self.transcription_service,
             self.config,
             self

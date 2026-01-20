@@ -5,6 +5,7 @@ Handles: OpenAI, Anthropic, Gemini, Groq, OpenRouter via LiteLLM library.
 """
 from typing import Optional
 import numpy as np
+import threading
 
 try:
     import soundfile as sf
@@ -37,13 +38,14 @@ class LiteLLMProvider(AbstractProvider):
     - OpenRouter
     """
 
-    def __init__(self, config, audio_processor):
-        super().__init__(config, audio_processor)
+    def __init__(self, config):
+        super().__init__(config)
 
         self.litellm = None
         self.litellm_exceptions = None
         self.mapper = MapperFactory.get_mapper(self.provider)
         self.total_cost = 0.0
+        self._cost_lock = threading.Lock()
         self._validation_results = None
 
     def initialize(self) -> bool:
@@ -552,11 +554,21 @@ class LiteLLMProvider(AbstractProvider):
         if completion_response:
             try:
                 current_cost = self.litellm.completion_cost(completion_response=completion_response)
-                self.total_cost += current_cost
                 pr_debug("COST:")
-                pr_debug(f"  Current request: ${current_cost:.6f}")
-                pr_debug(f"  Total session: ${self.total_cost:.6f}")
+                self._update_cost(current_cost)
             except Exception as e:
                 pr_debug(f"COST: Unable to calculate ({str(e)})")
 
         pr_debug("-" * 60)
+
+    def _update_cost(self, additional_cost: float) -> None:
+        """
+        Update total cost with thread safety.
+
+        Args:
+            additional_cost: Cost to add to running total
+        """
+        with self._cost_lock:
+            self.total_cost += additional_cost
+        pr_debug(f"  Current request: ${additional_cost:.6f}")
+        pr_debug(f"  Total session: ${self.total_cost:.6f}")

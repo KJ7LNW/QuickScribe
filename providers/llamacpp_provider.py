@@ -19,8 +19,8 @@ class LlamaCppProvider(AbstractProvider):
     Supports both CPU and GPU inference via llama-cpp-python.
     """
 
-    def __init__(self, config, audio_processor):
-        super().__init__(config, audio_processor)
+    def __init__(self, config):
+        super().__init__(config)
 
         self.model = None
         self.repo_id = None

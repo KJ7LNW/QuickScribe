@@ -15,8 +15,9 @@ from ui import AppState
 class ProcessingCoordinator:
     """Orchestrates parallel model invocation and sequential output processing."""
 
-    def __init__(self, provider, transcription_service, config, app):
+    def __init__(self, provider, transcription_source, transcription_service, config, app):
         self.provider = provider
+        self.transcription_source = transcription_source
         self.transcription_service = transcription_service
         self.config = config
         self.app = app
@@ -55,7 +56,7 @@ class ProcessingCoordinator:
         from model_invocation_worker import invoke_model_for_session
         threading.Thread(
             target=invoke_model_for_session,
-            args=(self.provider, processing_session, results),
+            args=(self.provider, self.transcription_source, processing_session, results),
             daemon=True
         ).start()
 

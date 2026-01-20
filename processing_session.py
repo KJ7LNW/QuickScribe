@@ -7,6 +7,7 @@ from typing import Optional
 from recording_session import RecordingSession
 from providers.conversation_context import ConversationContext
 from audio_source import AudioResult
+from transcription.types import TranscriptionResult
 
 
 class ProcessingSession:
@@ -26,6 +27,7 @@ class ProcessingSession:
         self.window_activated: threading.Event = threading.Event()
         self.error_message: Optional[str] = None
         self.retry_count: int = 0
+        self.transcription_results: list[TranscriptionResult] = []
 
     @property
     def has_error(self) -> bool:

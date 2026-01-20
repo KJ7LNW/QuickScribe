@@ -36,14 +36,14 @@ class TestConfigAccessorPattern(unittest.TestCase):
     def test_base_provider_accepts_config(self):
         """Test BaseProvider constructor accepts config object."""
         mock_audio_source = MagicMock()
-        provider = LiteLLMProvider(self.config, mock_audio_source)
+        provider = LiteLLMProvider(self.config)
         self.assertIsNotNone(provider)
         self.assertEqual(provider.config, self.config)
 
     def test_base_provider_no_field_copying(self):
         """Test BaseProvider does not copy config fields."""
         mock_audio_source = MagicMock()
-        provider = LiteLLMProvider(self.config, mock_audio_source)
+        provider = LiteLLMProvider(self.config)
 
         # Provider should NOT have these as direct attributes
         self.assertFalse(hasattr(provider, 'model_id'))
@@ -66,7 +66,7 @@ class TestConfigAccessorPattern(unittest.TestCase):
     def test_base_provider_has_instance_state(self):
         """Test BaseProvider has its own instance state."""
         mock_audio_source = MagicMock()
-        provider = LiteLLMProvider(self.config, mock_audio_source)
+        provider = LiteLLMProvider(self.config)
 
         # Provider should have these instance state fields
         self.assertTrue(hasattr(provider, '_initialized'))
@@ -78,7 +78,7 @@ class TestConfigAccessorPattern(unittest.TestCase):
     def test_base_provider_accessor_pattern(self):
         """Test BaseProvider accesses config via self.config."""
         mock_audio_source = MagicMock()
-        provider = LiteLLMProvider(self.config, mock_audio_source)
+        provider = LiteLLMProvider(self.config)
 
         # Access config fields via accessor
         self.assertEqual(provider.config.model_id, 'gemini/gemini-2.5-flash')
@@ -108,7 +108,7 @@ class TestConfigAccessorPattern(unittest.TestCase):
     def test_base_provider_builds_completion_params(self):
         """Test BaseProvider builds completion params from config."""
         mock_audio_source = MagicMock()
-        provider = LiteLLMProvider(self.config, mock_audio_source)
+        provider = LiteLLMProvider(self.config)
 
         # Build messages
         messages = [{"role": "user", "content": "test"}]
@@ -141,7 +141,7 @@ class TestDictationAppIntegration(unittest.TestCase):
 
     @patch('dictation_app.create_provider')
     def test_dictation_app_single_injection(self, mock_create_provider):
-        """Test DictationApp passes config and audio_source to create_provider."""
+        """Test DictationApp passes config to create_provider."""
         from dictation_app import DictationApp
 
         app = DictationApp()
@@ -149,14 +149,14 @@ class TestDictationAppIntegration(unittest.TestCase):
         app.config_manager.parse_configuration()
         app.config = app.config_manager
 
-        # Mock audio_source (required by provider factory)
+        # Mock audio_source (used for transcription, not provider)
         app.audio_source = MagicMock()
 
         # Call provider initialization
         result = app._initialize_provider_client()
 
-        # Verify create_provider was called with config and audio_source
-        mock_create_provider.assert_called_once_with(app.config, app.audio_source)
+        # Verify create_provider was called with config only
+        mock_create_provider.assert_called_once_with(app.config)
 
 
 class TestWav2Vec2Integration(unittest.TestCase):

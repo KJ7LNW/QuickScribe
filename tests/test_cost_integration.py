@@ -22,8 +22,7 @@ class TestCostIntegration(unittest.TestCase):
         mock_config.litellm_debug = False
         mock_config.sample_rate = 16000
 
-        mock_audio_processor = Mock()
-        provider = LiteLLMProvider(mock_config, mock_audio_processor)
+        provider = LiteLLMProvider(mock_config)
 
         mock_usage = Mock()
         mock_usage.prompt_tokens = 100

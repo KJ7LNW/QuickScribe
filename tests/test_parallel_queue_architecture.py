@@ -48,7 +48,7 @@ class MockConfig:
         self.chunk_timeout = 3.0
         self.http_timeout = 10.0
         self.retry_count = 3
-        self.audio_source = "mic"
+        self.audio_source = "transcribe"
 
     def is_transcription_mode(self) -> bool:
         """Check if transcription mode is active."""
@@ -63,8 +63,6 @@ class MockProvider:
         self.streaming_chunks = []
         self.invocation_started = threading.Event()
         self.call_count = 0
-        self.audio_processor = Mock()
-        self.audio_processor.transcribe_audio_data = Mock(return_value="transcribed text")
 
     def transcribe(self, context, audio_data=None, text_data=None,
                    streaming_callback=None, final_callback=None):
@@ -125,7 +123,7 @@ class TestParallelModelInvocation(unittest.TestCase):
 
             thread = threading.Thread(
                 target=invoke_model_for_session,
-                args=(mock_provider, processing_session, [result])
+                args=(mock_provider, None, processing_session, [result])
             )
             recording_threads.append((thread, processing_session))
 
@@ -177,10 +175,10 @@ class TestParallelModelInvocation(unittest.TestCase):
         result2 = AudioTextResult("input2", 16000)
         session2 = ProcessingSession(recording_session2, context2, result2)
 
-        thread1 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, session1, [result1]))
+        thread1 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, None, session1, [result1]))
         thread1.start()
 
-        thread2 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, session2, [result2]))
+        thread2 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, None, session2, [result2]))
         thread2.start()
 
         thread1.join(timeout=1.0)
@@ -496,7 +494,7 @@ class TestErrorHandling(unittest.TestCase):
         result1 = AudioTextResult("input1", 16000)
         session1 = ProcessingSession(recording_session1, context1, result1)
 
-        thread1 = threading.Thread(target=invoke_model_for_session, args=(failing_provider, session1, [result1]))
+        thread1 = threading.Thread(target=invoke_model_for_session, args=(failing_provider, None, session1, [result1]))
         thread1.start()
         thread1.join(timeout=1.0)
 
@@ -511,7 +509,7 @@ class TestErrorHandling(unittest.TestCase):
         result2 = AudioTextResult("input2", 16000)
         session2 = ProcessingSession(recording_session2, context2, result2)
 
-        thread2 = threading.Thread(target=invoke_model_for_session, args=(app.provider, session2, [result2]))
+        thread2 = threading.Thread(target=invoke_model_for_session, args=(app.provider, None, session2, [result2]))
         thread2.start()
         thread2.join(timeout=1.0)
 
@@ -744,8 +742,8 @@ class TestEndToEndIntegration(unittest.TestCase):
         result2 = AudioTextResult("input2", 16000)
         session2 = ProcessingSession(recording_session2, context2, result2)
 
-        thread1 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, session1, [result1]))
-        thread2 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, session2, [result2]))
+        thread1 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, None, session1, [result1]))
+        thread2 = threading.Thread(target=invoke_model_for_session, args=(mock_provider, None, session2, [result2]))
 
         thread1.start()
         thread2.start()

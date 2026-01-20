@@ -19,8 +19,8 @@ class HuggingFaceProvider(AbstractProvider):
     Only works with transcription mode since models require text input.
     """
 
-    def __init__(self, config, audio_processor):
-        super().__init__(config, audio_processor)
+    def __init__(self, config):
+        super().__init__(config)
 
         self.model = None
         self.tokenizer = None

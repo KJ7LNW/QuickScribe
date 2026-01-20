@@ -140,7 +140,7 @@ def test_processing_coordinator_validates_empty_results():
 
     config = MockConfig()
     app = MockApp()
-    coordinator = ProcessingCoordinator(None, None, config, app)
+    coordinator = ProcessingCoordinator(None, None, None, config, app)
 
     empty_results = [AudioDataResult(audio_data=np.array([], dtype=np.int16), sample_rate=16000)]
     assert coordinator._validate_audio_results(empty_results) is False

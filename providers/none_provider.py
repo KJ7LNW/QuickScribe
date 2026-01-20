@@ -18,8 +18,8 @@ class NoneProvider(AbstractProvider):
     for keyboard injection. Designed for direct phoneme or text passthrough.
     """
 
-    def __init__(self, config, audio_processor):
-        super().__init__(config, audio_processor)
+    def __init__(self, config):
+        super().__init__(config)
 
     def initialize(self) -> bool:
         """No initialization required for passthrough provider."""

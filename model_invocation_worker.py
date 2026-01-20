@@ -8,6 +8,7 @@ import time
 from typing import Optional
 from processing_session import ProcessingSession
 from audio_source import AudioResult, AudioDataResult, AudioTextResult
+from transcription.types import TranscriptionInput
 from lib.pr_log import pr_err, pr_warn, pr_debug
 from litellm import exceptions as litellm_exceptions
 
@@ -17,7 +18,7 @@ def _is_transcription_insufficient(text: Optional[str]) -> bool:
     return text is None or text == '<none>' or text.strip() == ''
 
 
-def invoke_model_for_session(provider, session: ProcessingSession, results: list[AudioResult]):
+def invoke_model_for_session(provider, transcription_source, session: ProcessingSession, results: list[AudioResult]):
     """
     Thread worker that invokes model and writes chunks to session queue.
 
@@ -40,11 +41,14 @@ def invoke_model_for_session(provider, session: ProcessingSession, results: list
 
             for result in results:
                 if isinstance(result, AudioDataResult):
-                    text = provider.audio_processor.transcribe_audio_data(result.audio_data)
-                    if not _is_transcription_insufficient(text):
-                        if text not in seen_texts:
-                            seen_texts.add(text)
-                            transcriptions.append(f'<tx speed="{result.speed_pct}%">{text}</tx>')
+                    input = TranscriptionInput(result.audio_data, result.sample_rate, result.speed_pct)
+                    tr_result = transcription_source.transcribe_audio_data(input)
+                    session.transcription_results.append(tr_result)
+
+                    if tr_result.error is None and not _is_transcription_insufficient(tr_result.text):
+                        if tr_result.text not in seen_texts:
+                            seen_texts.add(tr_result.text)
+                            transcriptions.append(f'<tx speed="{tr_result.speed_pct}%">{tr_result.text}</tx>')
                 elif isinstance(result, AudioTextResult):
                     if not _is_transcription_insufficient(result.transcribed_text):
                         if result.transcribed_text not in seen_texts:
