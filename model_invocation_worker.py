@@ -5,6 +5,7 @@ Runs in parallel to invoke transcription models asynchronously.
 import queue
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from processing_session import ProcessingSession
 from audio_source import AudioResult, AudioDataResult, AudioTextResult
@@ -39,22 +40,32 @@ def invoke_model_for_session(provider, transcription_source, session: Processing
             transcriptions = []
             seen_texts = set()
 
-            for result in results:
-                if isinstance(result, AudioDataResult):
-                    input = TranscriptionInput(result.audio_data, result.sample_rate, result.speed_pct)
-                    tr_result = transcription_source.transcribe_audio_data(input)
-                    session.transcription_results.append(tr_result)
+            # Parallel transcription of speed variants
+            inputs = [
+                TranscriptionInput(r.audio_data, r.sample_rate, r.speed_pct)
+                for r in results if isinstance(r, AudioDataResult)
+            ]
 
-                    if tr_result.error is None and not _is_transcription_insufficient(tr_result.text):
-                        if tr_result.text not in seen_texts:
-                            seen_texts.add(tr_result.text)
-                            transcriptions.append(f'<tx speed="{tr_result.speed_pct}%">{tr_result.text}</tx>')
-                elif isinstance(result, AudioTextResult):
+            if inputs:
+                with ThreadPoolExecutor(max_workers=len(inputs)) as executor:
+                    session.transcription_results = list(executor.map(
+                        transcription_source.transcribe_audio_data, inputs))
+
+            # Handle pre-transcribed text results
+            for result in results:
+                if isinstance(result, AudioTextResult):
                     if not _is_transcription_insufficient(result.transcribed_text):
                         if result.transcribed_text not in seen_texts:
                             seen_texts.add(result.transcribed_text)
                             speed_pct = getattr(result, 'speed_pct', 100)
                             transcriptions.append(f'<tx speed="{speed_pct}%">{result.transcribed_text}</tx>')
+
+            # Deduplication after parallel collection
+            for tr_result in session.transcription_results:
+                if tr_result.error is None and not _is_transcription_insufficient(tr_result.text):
+                    if tr_result.text not in seen_texts:
+                        seen_texts.add(tr_result.text)
+                        transcriptions.append(f'<tx speed="{tr_result.speed_pct}%">{tr_result.text}</tx>')
 
             if not transcriptions:
                 pr_warn("Skipping model invocation: insufficient transcription from audio")
