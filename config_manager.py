@@ -134,7 +134,7 @@ class ConfigManager:
             "--trigger-key",
             type=str,
             default='alt_r',
-            help="The key name to trigger recording (e.g., 'alt_r', 'ctrl_r', 'f19'), or 'none' to disable."
+            help="Comma-separated key names to trigger recording (e.g., 'alt_r', 'alt_r,ctrl_r', 'f19'), or 'none' to disable."
         )
         parser.add_argument(
             "--language",

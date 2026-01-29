@@ -23,7 +23,7 @@ class InputCoordinator:
         self.config = config
         self.app = app
 
-        self.trigger_key = None
+        self.trigger_key: set[keyboard.Key] = set()
         self.keyboard_listener = None
         self.qt_app = None
         self.signal_bridge = None
@@ -31,19 +31,25 @@ class InputCoordinator:
 
     def setup_trigger_key(self):
         """Sets up the trigger key based on configuration."""
-        key_name = self.config.trigger_key_name
-        if key_name is None or str(key_name).lower() in ("", "none", "disabled", "off"):
-            self.trigger_key = None
+        key_name_str = self.config.trigger_key_name
+        if key_name_str is None or str(key_name_str).lower() in ("", "none", "disabled", "off"):
+            self.trigger_key = set()
             return True
 
-        try:
-            self.trigger_key = getattr(keyboard.Key, key_name)
-        except AttributeError:
-            if len(key_name) == 1:
-                self.trigger_key = keyboard.KeyCode.from_char(key_name)
-            else:
-                pr_err(f"Invalid trigger key '{key_name}'. Use names like 'alt_r', 'ctrl_l', 'f1', or single characters.")
-                return False
+        for key_name in key_name_str.split(','):
+            key_name = key_name.strip()
+            if not key_name or key_name.lower() in ("none", "disabled", "off"):
+                continue
+
+            try:
+                key_obj = getattr(keyboard.Key, key_name)
+            except AttributeError:
+                if len(key_name) == 1:
+                    key_obj = keyboard.KeyCode.from_char(key_name)
+                else:
+                    pr_err(f"Invalid trigger key '{key_name}'. Use names like 'alt_r', 'ctrl_l', 'f1', or single characters.")
+                    return False
+            self.trigger_key.add(key_obj)
         return True
 
     def setup_signal_handlers(self):
@@ -88,7 +94,7 @@ class InputCoordinator:
 
     def start_keyboard_listener(self):
         """Start the keyboard listener if trigger key is configured."""
-        if self.trigger_key is None:
+        if not self.trigger_key:
             return None
 
         def safe_on_press(key):
@@ -116,11 +122,11 @@ class InputCoordinator:
 
     def is_trigger_enabled(self):
         """Check if keyboard trigger is enabled."""
-        return self.trigger_key is not None
+        return bool(self.trigger_key)
 
     def on_press(self, key):
         """Handle key press events."""
-        if key == self.trigger_key:
+        if key in self.trigger_key:
             pr_debug(f"Trigger key pressed, starting recording")
             self.app.recording_coordinator.start_recording(RecordingSource.KEYBOARD)
             return
@@ -135,7 +141,7 @@ class InputCoordinator:
 
     def on_release(self, key):
         """Handle key release events."""
-        if key != self.trigger_key:
+        if key not in self.trigger_key:
             return
 
         current_session = self.app.recording_coordinator.get_current_session()
