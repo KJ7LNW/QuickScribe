@@ -29,7 +29,8 @@ bitsandbytes  # Required for quantized models (--model-id huggingface/model@4 or
 accelerate  # Required for device_map with quantized models
 
 # llama.cpp dependencies (optional - for local GGUF models)
-llama-cpp-python  # Required for llamacpp/gguf providers (--model llamacpp/repo@file.gguf)
+# This is slow to build and I've not used it, so excluding from dependencies for now. 
+#llama-cpp-python  # Required for llamacpp/gguf providers (--model llamacpp/repo@file.gguf)
 
 # NeMo dependencies (optional - for NVIDIA NeMo ASR models)
 nemo_toolkit[asr]  # Required for NeMo TDT models (--transcription-model huggingface/nvidia/parakeet-*)

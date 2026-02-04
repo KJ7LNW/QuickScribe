@@ -1,6 +1,8 @@
 """HuggingFace model loading with automatic architecture detection."""
 
+import os
 import sys
+import tarfile
 
 sys.path.insert(0, 'lib')
 from pr_log import pr_info, pr_err
@@ -27,8 +29,12 @@ except ImportError:
 
 try:
     import nemo.collections.asr as nemo_asr
+    from nemo.core.connectors.save_restore_connector import SaveRestoreConnector
 except ImportError:
     nemo_asr = None
+    SaveRestoreConnector = None
+
+NEMO_EXTRACT_CACHE = os.path.expanduser("~/.cache/nemo_extracted")
 
 from .processor_utils import load_processor_with_fallback
 
@@ -77,8 +83,35 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
                         "Install with: pip install nemo_toolkit[asr]"
                     )
 
+                # Get the cached .nemo file path without loading
+                nemo_file = nemo_asr.models.ASRModel.from_pretrained(
+                    model_name=model_path, return_model_file=True
+                )
+
+                # Create persistent extraction directory
+                cache_key = model_path.replace("/", "--")
+                extract_dir = os.path.join(NEMO_EXTRACT_CACHE, cache_key)
+                marker_file = os.path.join(extract_dir, ".extracted")
+
+                # Extract if not already done
+                if not os.path.isfile(marker_file):
+                    pr_info(f"Extracting NeMo model to {extract_dir}")
+                    os.makedirs(extract_dir, exist_ok=True)
+                    with tarfile.open(nemo_file, "r") as tar:
+                        tar.extractall(extract_dir)
+                    with open(marker_file, "w") as f:
+                        f.write(nemo_files[0])
+                else:
+                    pr_info(f"Using cached extraction: {extract_dir}")
+
+                # Load using the pre-extracted directory
+                connector = SaveRestoreConnector()
+                connector.model_extracted_dir = extract_dir
+
                 pr_info("Loading NeMo ASR model")
-                model = nemo_asr.models.ASRModel.from_pretrained(model_name=model_path)
+                model = nemo_asr.models.ASRModel.from_pretrained(
+                    model_name=model_path, save_restore_connector=connector
+                )
                 model.eval()
 
                 pr_info(f"Successfully loaded NeMo TDT model: {model_path}")
