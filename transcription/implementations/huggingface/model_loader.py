@@ -69,6 +69,26 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
 
     pr_info(f"Loading model: {model_path}")
 
+    # Check local extraction cache before any network calls
+    cache_key = model_path.replace("/", "--")
+    extract_dir = os.path.join(NEMO_EXTRACT_CACHE, cache_key)
+    marker_file = os.path.join(extract_dir, ".extracted")
+
+    if os.path.isfile(marker_file) and nemo_asr is not None and SaveRestoreConnector is not None:
+        pr_info(f"Using cached NeMo extraction: {extract_dir}")
+
+        connector = SaveRestoreConnector()
+        connector.model_extracted_dir = extract_dir
+
+        pr_info("Loading NeMo ASR model")
+        model = nemo_asr.models.ASRModel.from_pretrained(
+            model_name=model_path, save_restore_connector=connector
+        )
+        model.eval()
+
+        pr_info(f"Successfully loaded NeMo TDT model: {model_path}")
+        return model, None, 'nemo_tdt'
+
     if hf_api is not None:
         try:
             repo_files = hf_api.list_repo_files(model_path)
@@ -88,12 +108,7 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
                     model_name=model_path, return_model_file=True
                 )
 
-                # Create persistent extraction directory
-                cache_key = model_path.replace("/", "--")
-                extract_dir = os.path.join(NEMO_EXTRACT_CACHE, cache_key)
-                marker_file = os.path.join(extract_dir, ".extracted")
-
-                # Extract if not already done
+                # Extract if not already done (marker_file computed above)
                 if not os.path.isfile(marker_file):
                     pr_info(f"Extracting NeMo model to {extract_dir}")
                     os.makedirs(extract_dir, exist_ok=True)

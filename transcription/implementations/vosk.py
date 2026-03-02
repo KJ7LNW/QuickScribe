@@ -193,8 +193,18 @@ class VoskTranscriptionAudioSource(TranscriptionAudioSource):
         self.vosk_handler = vosk_handler
 
     def _transcribe_audio(self, audio_data: np.ndarray) -> str:
-        """Transcribe audio using VOSK streaming handler."""
-        return self.vosk_handler.finalize()
+        """Transcribe audio using VOSK recognizer in batch mode."""
+        try:
+            if audio_data.dtype != np.int16:
+                audio_data = audio_data.astype(np.int16)
+            audio_bytes = audio_data.tobytes()
+
+            self.vosk_handler.recognizer.AcceptWaveform(audio_bytes)
+            return self.vosk_handler.finalize()
+
+        except Exception as e:
+            pr_err(f"Error in batch transcription: {e}")
+            return ""
 
     def initialize(self) -> bool:
         """Initialize VOSK transcription source."""
