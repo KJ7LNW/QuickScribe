@@ -3,13 +3,15 @@ Instruction composer for loading and combining instruction files.
 """
 import re
 from pathlib import Path
-from importlib.resources import files
 from typing import Optional
 from lib.pr_log import pr_warn, pr_notice
 
 
 class InstructionComposer:
     """Composes system instructions from modular files."""
+
+    # Resolve instructions directory relative to this source file
+    _INSTRUCTIONS_DIR = Path(__file__).resolve().parent / 'instructions'
 
     # Static cache shared across all instances
     _cache = {}
@@ -22,14 +24,7 @@ class InstructionComposer:
 
     def get_available_modes(self) -> list[str]:
         """Discover available modes from modes/ directory with caching."""
-        instruction_files = files('instructions')
-        modes_path = instruction_files / 'modes'
-
-        # Get actual filesystem path for mtime checking
-        if hasattr(instruction_files, '_path'):
-            base_path = Path(instruction_files._path) / 'modes'
-        else:
-            base_path = Path('instructions/modes')
+        base_path = self._INSTRUCTIONS_DIR / 'modes'
 
         # Check directory mtime
         current_dir_mtime = base_path.stat().st_mtime
@@ -46,7 +41,7 @@ class InstructionComposer:
 
         modes = sorted([
             Path(f.name).stem
-            for f in modes_path.iterdir()
+            for f in base_path.iterdir()
             if f.name.endswith('.md')
         ])
 
@@ -110,15 +105,7 @@ class InstructionComposer:
     def _load(self, path: str) -> Optional[str]:
         """Load instruction file with caching and mtime-based invalidation."""
         try:
-            instruction_files = files('instructions')
-            # Get the actual filesystem path if possible
-            if hasattr(instruction_files, '_path'):
-                base_path = Path(instruction_files._path)
-            else:
-                # Fallback for package resources
-                base_path = Path('instructions')
-
-            file_path = base_path / path
+            file_path = self._INSTRUCTIONS_DIR / path
 
             # Get current mtime
             current_mtime = file_path.stat().st_mtime
@@ -133,7 +120,7 @@ class InstructionComposer:
                     pr_notice(f"Instruction file '{path}' updated, refreshing cache")
 
             # Load and cache
-            content = (instruction_files / path).read_text()
+            content = file_path.read_text()
 
             # Resolve imports with standard filesystem semantics
             content = self._resolve_imports(content, file_path)
@@ -169,12 +156,8 @@ class InstructionComposer:
             '{{AVAILABLE_MODES}}': '|'.join(other_modes)
         }
 
-        # Get base path for instructions
-        instruction_files = files('instructions')
-        if hasattr(instruction_files, '_path'):
-            base_path = Path(instruction_files._path)
-        else:
-            base_path = Path('instructions')
+        # Resolve from source-relative instructions directory
+        base_path = self._INSTRUCTIONS_DIR
 
         parts = []
 

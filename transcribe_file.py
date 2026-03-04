@@ -39,44 +39,45 @@ def load_audio_file(file_path: str) -> tuple[np.ndarray, int]:
         raise
 
 
-def transcribe_file(audio_file: str, transcription_model: str, target_sample_rate: int = 16000) -> str:
+def transcribe_file(audio_file: str, config: ConfigManager) -> str:
     """
-    Transcribe audio file using specified model.
+    Transcribe audio file using configuration from config.
 
     Args:
         audio_file: Path to audio file
-        transcription_model: Model specification (e.g., "vosk/model", "openai/whisper-1")
-        target_sample_rate: Target sample rate for transcription model
+        config: Fully populated ConfigManager instance
 
     Returns:
         Transcribed text
     """
     audio_data, file_sample_rate = load_audio_file(audio_file)
 
+    target_sample_rate = config.sample_rate
+
     if file_sample_rate != target_sample_rate:
         pr_info(f"Resampling from {file_sample_rate} Hz to {target_sample_rate} Hz")
         num_samples = int(len(audio_data) * target_sample_rate / file_sample_rate)
         audio_data = signal.resample(audio_data, num_samples).astype('int16')
-        sample_rate = target_sample_rate
     else:
-        sample_rate = file_sample_rate
+        target_sample_rate = file_sample_rate
 
-    config = ConfigManager()
-    config.transcription_model = transcription_model
-    config.sample_rate = sample_rate
-    config.audio_source = "transcribe"
-    config.debug_enabled = False
-
-    pr_info(f"Initializing transcription with model: {transcription_model}")
+    pr_info(f"Initializing transcription with model: {config.transcription_model}")
 
     transcription_source = get_transcription_source(config)
+
+    # Apply system instruction overrides before initialization
+    if config.sys_instructions is not None:
+        transcription_source.instructions = config.sys_instructions
+
+    if config.sys_append is not None:
+        transcription_source.instructions += "\n" + config.sys_append
 
     if not transcription_source.initialize():
         raise RuntimeError("Failed to initialize transcription source")
 
     transcription_input = TranscriptionInput(
         audio_data=audio_data,
-        sample_rate=sample_rate,
+        sample_rate=target_sample_rate,
         speed_pct=100
     )
 
@@ -109,14 +110,14 @@ def main():
         "--transcription-model", "-T",
         type=str,
         default="vosk/vosk-model-small-en-us-0.15",
-        help="Transcription model specification (e.g., 'vosk/model-path', 'openai/whisper-1', 'huggingface/facebook/wav2vec2-base-960h')"
+        help="Transcription model specification (e.g., 'vosk/model-path', 'openai/whisper-1', 'gemini/gemini-2.0-flash')"
     )
 
     parser.add_argument(
         "--sample-rate", "-r",
         type=int,
         default=16000,
-        help="Target sample rate for transcription model (default: 16000 Hz)"
+        help="Target sample rate for transcription model"
     )
 
     parser.add_argument(
@@ -127,20 +128,77 @@ def main():
     )
 
     parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose output to stderr"
+        "--debug", "-D",
+        action="count",
+        default=0,
+        help="Enable debug output (-D app debug, -DD also enables litellm debug)"
+    )
+
+    parser.add_argument(
+        "--enable-reasoning", "-R",
+        choices=["none", "low", "medium", "high"],
+        default="low",
+        help="Reasoning effort level sent to model"
+    )
+
+    parser.add_argument(
+        "--thinking-budget", "-B",
+        type=int,
+        default=128,
+        help="Token budget for model reasoning/thinking"
+    )
+
+    parser.add_argument(
+        "--http-timeout", "-H",
+        type=float,
+        default=10.0,
+        help="HTTP timeout in seconds for API requests"
+    )
+
+    parser.add_argument(
+        "--key", "-k",
+        type=str,
+        default=None,
+        help="API key override for the transcription provider"
+    )
+
+    parser.add_argument(
+        "--sys", "-s",
+        type=str,
+        default=None,
+        help="Replace system instructions with this string instead of reading the markdown file"
+    )
+
+    parser.add_argument(
+        "--sys-append", "-a",
+        type=str,
+        default=None,
+        help="Append this text to system instructions before sending (applied after --sys if both given)"
     )
 
     args = parser.parse_args()
 
-    if args.verbose:
+    debug_level = args.debug
+    if debug_level >= 1:
         set_log_level(PR_DEBUG)
     else:
         set_log_level(PR_ERR)
 
+    config = ConfigManager()
+    config.transcription_model = args.transcription_model
+    config.sample_rate = args.sample_rate
+    config.audio_source = "transcribe"
+    config.debug_enabled = debug_level >= 1
+    config.litellm_debug = debug_level >= 2
+    config.enable_reasoning = args.enable_reasoning
+    config.thinking_budget = args.thinking_budget
+    config.http_timeout = args.http_timeout
+    config.api_key = args.key
+    config.sys_instructions = args.sys
+    config.sys_append = args.sys_append
+
     try:
-        text = transcribe_file(args.audio_file, args.transcription_model, args.sample_rate)
+        text = transcribe_file(args.audio_file, config)
 
         if args.output:
             with open(args.output, 'w') as f:
