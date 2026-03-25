@@ -99,11 +99,25 @@ class LiteLLMTranscriptionAudioSource(TranscriptionAudioSource):
         # Build audio content using provider-specific mapper
         audio_content = self.mapper.map_audio_params(audio_b64, "wav")
 
+        # Build user prompt, incorporating prior transcriptions when present
+        if self.prior_transcriptions:
+            prior_parts = [
+                f"Model {model}:\n{text}"
+                for model, text in self.prior_transcriptions.items()
+            ]
+            user_text = (
+                "Prior transcriptions:\n\n"
+                + "\n\n".join(prior_parts)
+                + "\n\nTranscribe the audio following system instructions."
+            )
+        else:
+            user_text = "Transcribe the audio following system instructions."
+
         # Build messages
         messages = [
             {"role": "system", "content": self.instructions},
             {"role": "user", "content": [
-                {"type": "text", "text": "Transcribe the audio following system instructions."},
+                {"type": "text", "text": user_text},
                 audio_content
             ]}
         ]

@@ -37,6 +37,10 @@ class TranscriptionAudioSource(MicrophoneAudioSource):
         self.model_identifier = model_identifier
         self.supports_streaming = supports_streaming
 
+        # Prior transcription results from other models in a multi-model pipeline.
+        # Keyed by model identifier, valued by transcribed text.
+        self.prior_transcriptions: dict[str, str] = {}
+
     @abstractmethod
     def _transcribe_audio(self, audio_data: np.ndarray) -> str:
         """

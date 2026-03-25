@@ -2,8 +2,10 @@
 """
 Simple audio file transcription utility using QuickScribe libraries.
 """
+import copy
 import sys
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import soundfile as sf
 from scipy import signal
@@ -39,6 +41,135 @@ def load_audio_file(file_path: str) -> tuple[np.ndarray, int]:
         raise
 
 
+def _run_single_model(audio_data: np.ndarray, sample_rate: int, config: ConfigManager) -> str:
+    """
+    Run a single transcription model on audio data.
+
+    Creates a transcription source from config, applies system instruction
+    overrides, initializes, and transcribes.
+
+    Args:
+        audio_data: Resampled audio data array
+        sample_rate: Sample rate of audio_data
+        config: ConfigManager with transcription_model set for this model
+
+    Returns:
+        Transcribed text
+
+    Raises:
+        RuntimeError: If initialization or transcription fails
+    """
+    pr_info(f"Initializing transcription with model: {config.transcription_model}")
+
+    transcription_source = get_transcription_source(config)
+
+    # Apply system instruction overrides before initialization
+    if config.sys_instructions is not None:
+        transcription_source.instructions = config.sys_instructions
+
+    if config.sys_append is not None:
+        transcription_source.instructions += "\n" + config.sys_append
+
+    if not transcription_source.initialize():
+        raise RuntimeError(f"Failed to initialize transcription source: {config.transcription_model}")
+
+    transcription_input = TranscriptionInput(
+        audio_data=audio_data,
+        sample_rate=sample_rate,
+        speed_pct=100
+    )
+
+    result = transcription_source.transcribe_audio_data(transcription_input)
+
+    if result.error:
+        raise RuntimeError(f"Transcription error ({config.transcription_model}): {result.error}")
+
+    pr_info(f"Transcription completed ({config.transcription_model}) in {result.duration_ms}ms")
+    transcription_source._cleanup()
+
+    return result.text
+
+
+def _run_pipeline(audio_data: np.ndarray, sample_rate: int,
+                  models: list[str], config: ConfigManager) -> str:
+    """
+    Run multi-model transcription pipeline.
+
+    Non-final models run in parallel on the audio. The final model receives
+    audio plus all prior transcription results.
+
+    Args:
+        audio_data: Resampled audio data array
+        sample_rate: Sample rate of audio_data
+        models: Ordered list of model identifiers (last is AI combiner)
+        config: Base ConfigManager to clone per model
+
+    Returns:
+        Final combined transcription text
+
+    Raises:
+        RuntimeError: If any model fails
+    """
+    preliminary_models = models[:-1]
+    final_model = models[-1]
+
+    # Run preliminary models in parallel
+    prior_transcriptions: dict[str, str] = {}
+
+    def run_preliminary(model: str) -> tuple[str, str]:
+        model_config = copy.copy(config)
+        model_config.transcription_model = model
+        text = _run_single_model(audio_data, sample_rate, model_config)
+        return model, text
+
+    with ThreadPoolExecutor(max_workers=len(preliminary_models)) as pool:
+        futures = {
+            pool.submit(run_preliminary, m): m
+            for m in preliminary_models
+        }
+
+        for future in as_completed(futures):
+            model, text = future.result()
+            prior_transcriptions[model] = text
+
+    pr_info(f"All {len(preliminary_models)} preliminary models complete, running final model: {final_model}")
+
+    # Run final model with prior transcriptions
+    final_config = copy.copy(config)
+    final_config.transcription_model = final_model
+
+    final_source = get_transcription_source(final_config)
+
+    # Apply system instruction overrides
+    if config.sys_instructions is not None:
+        final_source.instructions = config.sys_instructions
+
+    if config.sys_append is not None:
+        final_source.instructions += "\n" + config.sys_append
+
+    # Inject prior transcriptions for the AI combiner
+    final_source.prior_transcriptions = prior_transcriptions
+
+    if not final_source.initialize():
+        raise RuntimeError(f"Failed to initialize final model: {final_model}")
+
+    transcription_input = TranscriptionInput(
+        audio_data=audio_data,
+        sample_rate=sample_rate,
+        speed_pct=100
+    )
+
+    result = final_source.transcribe_audio_data(transcription_input)
+
+    if result.error:
+        raise RuntimeError(f"Final transcription error ({final_model}): {result.error}")
+
+    pr_info(f"Pipeline completed ({final_model}) in {result.duration_ms}ms")
+    final_source._cleanup()
+
+    return result.text
+
+
 def transcribe_file(audio_file: str, config: ConfigManager) -> str:
     """
     Transcribe audio file using configuration from config.
@@ -61,38 +192,17 @@ def transcribe_file(audio_file: str, config: ConfigManager) -> str:
     else:
         target_sample_rate = file_sample_rate
 
-    pr_info(f"Initializing transcription with model: {config.transcription_model}")
+    # Split comma-separated models for pipeline support
+    models = [m.strip() for m in config.transcription_model.split(',')]
 
-    transcription_source = get_transcription_source(config)
-
-    # Apply system instruction overrides before initialization
-    if config.sys_instructions is not None:
-        transcription_source.instructions = config.sys_instructions
-
-    if config.sys_append is not None:
-        transcription_source.instructions += "\n" + config.sys_append
-
-    if not transcription_source.initialize():
-        raise RuntimeError("Failed to initialize transcription source")
-
-    transcription_input = TranscriptionInput(
-        audio_data=audio_data,
-        sample_rate=target_sample_rate,
-        speed_pct=100
-    )
-
-    pr_info("Starting transcription...")
-    result = transcription_source.transcribe_audio_data(transcription_input)
-
-    if result.error:
-        pr_err(f"Transcription error: {result.error}")
-        return ""
-
-    pr_info(f"Transcription completed in {result.duration_ms}ms")
-
-    transcription_source._cleanup()
-
-    return result.text
+    if len(models) == 1:
+        # Single model: direct transcription
+        pr_info("Starting transcription...")
+        return _run_single_model(audio_data, target_sample_rate, config)
+    else:
+        # Multi-model pipeline: preliminary models in parallel, final model combines
+        pr_info(f"Starting pipeline with {len(models)} models...")
+        return _run_pipeline(audio_data, target_sample_rate, models, config)
 
 
 def main():
@@ -110,7 +220,7 @@ def main():
         "--transcription-model", "-T",
         type=str,
         default="vosk/vosk-model-small-en-us-0.15",
-        help="Transcription model specification (e.g., 'vosk/model-path', 'openai/whisper-1', 'gemini/gemini-2.0-flash')"
+        help="Transcription model(s). Single: 'provider/model'. Pipeline: 'model1,model2,...,modelN' where non-final run in parallel and final receives all prior transcripts"
     )
 
     parser.add_argument(
