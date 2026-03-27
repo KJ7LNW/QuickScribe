@@ -36,6 +36,14 @@ class SystemTrayUI(QObject):
     quit_requested = pyqtSignal()
     window_focus_requested = pyqtSignal(str)
 
+    # Internal signals for cross-thread marshaling.
+    # Worker threads emit these; Qt auto-connection delivers the connected
+    # slots on the main thread that owns this QObject.
+    _request_set_state = pyqtSignal(object)
+    _request_show_message = pyqtSignal(str, str)
+    _request_show_error = pyqtSignal(str)
+    _request_window_focus = pyqtSignal(str, str)
+
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
 
@@ -46,6 +54,11 @@ class SystemTrayUI(QObject):
 
         self._setup_menu()
         self._setup_tray()
+
+        self._request_set_state.connect(self._do_set_state)
+        self._request_show_message.connect(self._do_show_message)
+        self._request_show_error.connect(self._do_show_error)
+        self._request_window_focus.connect(self._do_window_focus)
 
     def _setup_menu(self):
         """Create context menu for tray icon."""
@@ -98,13 +111,42 @@ class SystemTrayUI(QObject):
         """
         Update tray icon to reflect new application state.
 
-        Args:
-            state: New application state
+        Thread-safe: marshals to main thread via signal.
         """
+        self._request_set_state.emit(state)
+
+    def show_message(self, title: str, message: str):
+        """
+        Show notification message from tray icon.
+
+        Thread-safe: marshals to main thread via signal.
+        """
+        self._request_show_message.emit(title, message)
+
+    def show_error(self, error_message: str):
+        """
+        Display error state and show toast notification.
+
+        Thread-safe: marshals to main thread via signal.
+        """
+        self._request_show_error.emit(error_message)
+
+    def show_window_focus_notification(self, window_id: Optional[str], message: str):
+        """
+        Display clickable notification to focus specific window.
+
+        Thread-safe: marshals to main thread via signal.
+        """
+        if window_id is None:
+            return
+
+        self._request_window_focus.emit(window_id, message)
+
+    def _do_set_state(self, state: AppState):
+        """Main-thread slot: update icon and menu actions for new state."""
         self._current_state = state
         self._update_icon()
 
-        # Update menu actions based on state
         if state == AppState.RECORDING:
             self._action_start.setEnabled(False)
             self._action_stop.setEnabled(True)
@@ -112,37 +154,17 @@ class SystemTrayUI(QObject):
             self._action_start.setEnabled(True)
             self._action_stop.setEnabled(False)
 
-    def show_message(self, title: str, message: str):
-        """
-        Show notification message from tray icon.
-
-        Args:
-            title: Notification title
-            message: Notification message
-        """
+    def _do_show_message(self, title: str, message: str):
+        """Main-thread slot: display tray notification toast."""
         self._tray_icon.showMessage(title, message)
 
-    def show_error(self, error_message: str):
-        """
-        Display error state and show toast notification.
-
-        Args:
-            error_message: Error message to display in toast
-        """
-        self.set_state(AppState.ERROR)
+    def _do_show_error(self, error_message: str):
+        """Main-thread slot: set error state and display critical toast."""
+        self._do_set_state(AppState.ERROR)
         self._tray_icon.showMessage("Dictation API error", error_message, QSystemTrayIcon.MessageIcon.Critical, 3000)
 
-    def show_window_focus_notification(self, window_id: Optional[str], message: str):
-        """
-        Display clickable notification to focus specific window.
-
-        Args:
-            window_id: X11 window ID to focus when notification clicked
-            message: Notification message to display
-        """
-        if window_id is None:
-            return
-
+    def _do_window_focus(self, window_id: str, message: str):
+        """Main-thread slot: display clickable notification for window focus."""
         self._pending_window_id = window_id
         self._tray_icon.messageClicked.connect(self._on_focus_notification_clicked)
         self._tray_icon.showMessage("Window Focus Required", message, QSystemTrayIcon.MessageIcon.Information, 10000)
