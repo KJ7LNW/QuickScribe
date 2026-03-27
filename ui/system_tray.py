@@ -80,6 +80,7 @@ class SystemTrayUI(QObject):
     def _setup_tray(self):
         """Initialize tray icon."""
         self._tray_icon.setContextMenu(self._menu)
+        self._tray_icon.messageClicked.connect(self._on_focus_notification_clicked)
         self._update_icon()
         self._tray_icon.show()
 
@@ -164,10 +165,9 @@ class SystemTrayUI(QObject):
         self._tray_icon.showMessage("Dictation API error", error_message, QSystemTrayIcon.MessageIcon.Critical, 3000)
 
     def _do_window_focus(self, window_id: str, message: str):
-        """Main-thread slot: display clickable notification for window focus."""
+        """Main-thread slot: display persistent clickable notification for window focus."""
         self._pending_window_id = window_id
-        self._tray_icon.messageClicked.connect(self._on_focus_notification_clicked)
-        self._tray_icon.showMessage("Window Focus Required", message, QSystemTrayIcon.MessageIcon.Information, 10000)
+        self._tray_icon.showMessage("Window Focus Required", message, QSystemTrayIcon.MessageIcon.Information, 0)
 
     def _on_focus_notification_clicked(self):
         """Handle click on window focus notification."""
@@ -176,12 +176,6 @@ class SystemTrayUI(QObject):
 
         window_id = self._pending_window_id
         self._pending_window_id = None
-
-        try:
-            self._tray_icon.messageClicked.disconnect(self._on_focus_notification_clicked)
-        except TypeError:
-            pass
-
         self.window_focus_requested.emit(window_id)
 
     def cleanup(self):
