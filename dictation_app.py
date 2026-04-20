@@ -60,6 +60,11 @@ class DictationApp:
         if self.input_coordinator and self.input_coordinator.system_tray:
             self.input_coordinator.system_tray.show_window_focus_notification(window_id, message)
 
+    def add_dictation_history(self, text: str):
+        """Append completed dictation text to the history window."""
+        if self.input_coordinator and self.input_coordinator.system_tray:
+            self.input_coordinator.system_tray.add_dictation_history(text)
+
     def show_error_notification(self, error_message: str):
         """Display error notification in system tray and show toast."""
         if self.input_coordinator and self.input_coordinator.system_tray:

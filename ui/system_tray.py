@@ -10,6 +10,7 @@ from typing import Optional
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
 from PyQt6.QtGui import QIcon, QAction
 from PyQt6.QtCore import QObject, pyqtSignal
+from .dictation_history_window import DictationHistoryWindow
 
 
 class AppState(Enum):
@@ -43,6 +44,7 @@ class SystemTrayUI(QObject):
     _request_show_message = pyqtSignal(str, str)
     _request_show_error = pyqtSignal(str)
     _request_window_focus = pyqtSignal(str, str)
+    _request_add_history = pyqtSignal(str)
 
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
@@ -51,6 +53,7 @@ class SystemTrayUI(QObject):
         self._tray_icon = QSystemTrayIcon(self)
         self._menu = QMenu()
         self._pending_window_id: Optional[str] = None
+        self._history_window = DictationHistoryWindow()
 
         self._setup_menu()
         self._setup_tray()
@@ -59,6 +62,7 @@ class SystemTrayUI(QObject):
         self._request_show_message.connect(self._do_show_message)
         self._request_show_error.connect(self._do_show_error)
         self._request_window_focus.connect(self._do_window_focus)
+        self._request_add_history.connect(self._history_window.add_entry)
 
     def _setup_menu(self):
         """Create context menu for tray icon."""
@@ -70,6 +74,12 @@ class SystemTrayUI(QObject):
         self._action_stop.triggered.connect(self.stop_recording_requested.emit)
         self._action_stop.setEnabled(False)
         self._menu.addAction(self._action_stop)
+
+        self._menu.addSeparator()
+
+        self._action_history = QAction("Dictation History", self)
+        self._action_history.triggered.connect(self._toggle_history_window)
+        self._menu.addAction(self._action_history)
 
         self._menu.addSeparator()
 
@@ -178,6 +188,23 @@ class SystemTrayUI(QObject):
         self._pending_window_id = None
         self.window_focus_requested.emit(window_id)
 
+    def add_dictation_history(self, text: str):
+        """
+        Append dictation text to the history window.
+
+        Thread-safe: marshals to main thread via signal.
+        """
+        self._request_add_history.emit(text)
+
+    def _toggle_history_window(self):
+        """Show or raise the dictation history window."""
+        if not self._history_window.isVisible():
+            self._history_window.show()
+
+        self._history_window.raise_()
+        self._history_window.activateWindow()
+
     def cleanup(self):
         """Clean up tray icon resources."""
+        self._history_window.close()
         self._tray_icon.hide()

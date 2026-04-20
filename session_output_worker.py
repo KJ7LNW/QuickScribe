@@ -51,6 +51,7 @@ def process_session_output(app, session: ProcessingSession):
         final_text = app.transcription_service._build_current_text()
         if final_text:
             pr_info(f"{final_text}\n")
+            app.add_dictation_history(final_text)
         else:
             pr_info("")
 
