@@ -259,6 +259,21 @@ def main():
     )
 
     parser.add_argument(
+        "--transcription-device",
+        type=str,
+        choices=["auto", "cuda", "cpu"],
+        default="auto",
+        help="Device for transcription model inference: 'auto' (use CUDA if available, else CPU), 'cuda', 'cpu'. Default: 'auto'."
+    )
+    parser.add_argument(
+        "--transcription-precision",
+        type=str,
+        choices=["auto", "fp32", "fp16", "bf16", "int8"],
+        default="auto",
+        help="Numeric precision for transcription model: 'auto' (fp16 on CUDA, fp32 on CPU), 'fp32', 'fp16', 'bf16', 'int8'. Default: 'auto'."
+    )
+
+    parser.add_argument(
         "--http-timeout", "-H",
         type=float,
         default=10.0,
@@ -303,6 +318,8 @@ def main():
     config.enable_reasoning = args.enable_reasoning
     config.thinking_budget = args.thinking_budget
     config.http_timeout = args.http_timeout
+    config.transcription_device = args.transcription_device
+    config.transcription_precision = args.transcription_precision
     config.api_key = args.key
     config.sys_instructions = args.sys
     config.sys_append = args.sys_append

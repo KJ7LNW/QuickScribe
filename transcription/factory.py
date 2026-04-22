@@ -55,7 +55,9 @@ def get_transcription_source(config):
             model_identifier,
             cache_dir=None,
             force_download=False,
-            local_files_only=False
+            local_files_only=False,
+            device=config.transcription_device,
+            precision=config.transcription_precision
         )
 
         implementation_class = _HUGGINGFACE_IMPLEMENTATIONS.get(architecture)

@@ -31,6 +31,8 @@ class ConfigManager:
         # Transcription model configuration
         self.transcription_model = "huggingface/facebook/wav2vec2-lv-60-espeak-cv-ft"
         self.transcription_lang = "en"
+        self.transcription_device = "auto"
+        self.transcription_precision = "auto"
 
         # Operation mode
         self.mode = "dictate"  # Default to dictation mode
@@ -236,6 +238,20 @@ class ConfigManager:
             help="Language for transcription (ISO 639-1 code). Examples: 'en', 'es', 'fr'. Only used with Seq2Seq models like Whisper. Defaults to 'en'."
         )
         parser.add_argument(
+            "--transcription-device",
+            type=str,
+            choices=["auto", "cuda", "cpu"],
+            default="auto",
+            help="Device for transcription model inference: 'auto' (use CUDA if available, else CPU), 'cuda', 'cpu'. Default: 'auto'."
+        )
+        parser.add_argument(
+            "--transcription-precision",
+            type=str,
+            choices=["auto", "fp32", "fp16", "bf16", "int8"],
+            default="auto",
+            help="Numeric precision for transcription model: 'auto' (fp16 on CUDA, fp32 on CPU), 'fp32', 'fp16', 'bf16', 'int8'. Default: 'auto'."
+        )
+        parser.add_argument(
             "--enable-reasoning",
             type=str,
             choices=['none', 'low', 'medium', 'high'],
@@ -370,6 +386,8 @@ class ConfigManager:
         # Transcription model configuration
         self.transcription_model = getattr(args, 'transcription_model', self.transcription_model)
         self.transcription_lang = getattr(args, 'transcription_lang', "en")
+        self.transcription_device = getattr(args, 'transcription_device', "auto")
+        self.transcription_precision = getattr(args, 'transcription_precision', "auto")
 
         # Provider performance controls (CLI > env > default)
         self.enable_reasoning = args.enable_reasoning or os.environ.get('QUICKSCRIBE_REASONING', 'low')

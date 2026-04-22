@@ -5,7 +5,7 @@ import sys
 import tarfile
 
 sys.path.insert(0, 'lib')
-from pr_log import pr_info, pr_err
+from pr_log import pr_info, pr_err, pr_notice
 
 try:
     import torch
@@ -39,7 +39,84 @@ NEMO_EXTRACT_CACHE = os.path.expanduser("~/.cache/nemo_extracted")
 from .processor_utils import load_processor_with_fallback
 
 
-def load_huggingface_model(model_path: str, cache_dir=None, force_download=False, local_files_only=False):
+def _resolve_device(device: str) -> str:
+    """Resolve device string to a concrete 'cuda' or 'cpu' value."""
+    if device == "auto":
+        if torch.cuda.is_available():
+            return "cuda"
+        else:
+            pr_notice("CUDA not available, using CPU for transcription")
+            return "cpu"
+    elif device == "cuda":
+        if not torch.cuda.is_available():
+            pr_err("--transcription-device cuda requested but CUDA is not available")
+            raise ValueError("CUDA requested but not available")
+        return device
+    elif device == "cpu":
+        return device
+    else:
+        raise ValueError(f"Unknown device: {device}")
+
+
+def _apply_precision(model, precision: str, device: str):
+    """Apply numeric precision conversion to model after loading."""
+    if precision == "auto":
+        if device == "cuda":
+            return model.half()
+        else:
+            return model
+    elif precision == "fp16":
+        return model.half()
+    elif precision == "bf16":
+        if device == "cuda" and not torch.cuda.is_bf16_supported():
+            pr_err("--transcription-precision bf16 requested but GPU does not support bfloat16")
+            raise ValueError("bfloat16 not supported on this GPU")
+        return model.bfloat16()
+    elif precision == "int8":
+        if device == "cuda":
+            pr_err("--transcription-precision int8 is CPU-only; use --transcription-device cpu")
+            raise ValueError("int8 dynamic quantization is CPU-only")
+
+        # torch.ao.quantization replaces Linear layers with int8-quantized versions
+        return torch.ao.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+    elif precision == "fp32":
+        return model
+    else:
+        raise ValueError(f"Unknown precision: {precision}")
+
+
+def _compute_torch_dtype(precision: str, device: str):
+    """Return torch dtype to pass to from_pretrained, or None for framework default (fp32)."""
+    if precision == "auto":
+        if device == "cuda":
+            return torch.float16
+        else:
+            return None
+    elif precision == "fp16":
+        return torch.float16
+    elif precision == "bf16":
+        return torch.bfloat16
+    else:
+        return None
+
+
+def _move_to_device(model, device: str):
+    """Move model to device, falling back to CPU on OutOfMemoryError."""
+    try:
+        return model.to(device)
+    except torch.cuda.OutOfMemoryError:
+        pr_notice(f"CUDA out of memory moving model to {device}, falling back to CPU")
+        return model.to("cpu")
+
+
+def load_huggingface_model(
+    model_path: str,
+    cache_dir=None,
+    force_download=False,
+    local_files_only=False,
+    device="auto",
+    precision="auto"
+):
     """
     Load HuggingFace model and automatically detect architecture type.
 
@@ -51,6 +128,8 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
         cache_dir: Optional cache directory
         force_download: Force re-download of model files
         local_files_only: Use only local cached files
+        device: Target device — 'auto', 'cuda', or 'cpu'
+        precision: Numeric precision — 'auto', 'fp32', 'fp16', 'bf16', or 'int8'
 
     Returns:
         Tuple of (model, processor, architecture_type)
@@ -69,6 +148,8 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
 
     pr_info(f"Loading model: {model_path}")
 
+    resolved_device = _resolve_device(device)
+
     # Check local extraction cache before any network calls
     cache_key = model_path.replace("/", "--")
     extract_dir = os.path.join(NEMO_EXTRACT_CACHE, cache_key)
@@ -80,11 +161,18 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
         connector = SaveRestoreConnector()
         connector.model_extracted_dir = extract_dir
 
+        # Force CPU loading so precision conversion happens before device placement
+        connector.map_location = torch.device('cpu')
+
         pr_info("Loading NeMo ASR model")
         model = nemo_asr.models.ASRModel.from_pretrained(
-            model_name=model_path, save_restore_connector=connector
+            model_name=model_path,
+            save_restore_connector=connector,
+            map_location=torch.device('cpu')
         )
         model.eval()
+        model = _apply_precision(model, precision, resolved_device)
+        model = _move_to_device(model, resolved_device)
 
         pr_info(f"Successfully loaded NeMo TDT model: {model_path}")
         return model, None, 'nemo_tdt'
@@ -123,11 +211,18 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
                 connector = SaveRestoreConnector()
                 connector.model_extracted_dir = extract_dir
 
+                # Force CPU loading so precision conversion happens before device placement
+                connector.map_location = torch.device('cpu')
+
                 pr_info("Loading NeMo ASR model")
                 model = nemo_asr.models.ASRModel.from_pretrained(
-                    model_name=model_path, save_restore_connector=connector
+                    model_name=model_path,
+                    save_restore_connector=connector,
+                    map_location=torch.device('cpu')
                 )
                 model.eval()
+                model = _apply_precision(model, precision, resolved_device)
+                model = _move_to_device(model, resolved_device)
 
                 pr_info(f"Successfully loaded NeMo TDT model: {model_path}")
                 return model, None, 'nemo_tdt'
@@ -143,7 +238,8 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
             model_path,
             cache_dir=cache_dir,
             force_download=force_download,
-            local_files_only=offline_mode
+            local_files_only=offline_mode,
+            torch_dtype=_compute_torch_dtype(precision, resolved_device)
         )
 
         processor = load_processor_with_fallback(
@@ -154,6 +250,8 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
         )
 
         model.eval()
+        model = _apply_precision(model, precision, resolved_device)
+        model = _move_to_device(model, resolved_device)
         pr_info(f"Successfully loaded as CTC model: {model_path}")
         return model, processor, 'ctc'
 
@@ -163,18 +261,17 @@ def load_huggingface_model(model_path: str, cache_dir=None, force_download=False
     try:
         pr_info("Attempting to load as Seq2Seq model")
 
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-
         model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_path,
             low_cpu_mem_usage=True,
             cache_dir=cache_dir,
             force_download=force_download,
-            local_files_only=offline_mode
+            local_files_only=offline_mode,
+            torch_dtype=_compute_torch_dtype(precision, resolved_device)
         )
 
-        model = model.to(device, dtype=torch_dtype)
+        model = _apply_precision(model, precision, resolved_device)
+        model = _move_to_device(model, resolved_device)
 
         processor = AutoProcessor.from_pretrained(
             model_path,

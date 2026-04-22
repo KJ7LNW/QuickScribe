@@ -113,7 +113,7 @@ class HuggingFaceCTCTranscriptionAudioSource(TranscriptionAudioSource):
                     audio_data,
                     sampling_rate=self.config.sample_rate,
                     return_tensors="pt"
-                ).input_values
+                ).input_values.to(self.model.device)
 
                 logits = self.model(input_values).logits
                 predicted_ids = torch.argmax(logits, dim=-1)

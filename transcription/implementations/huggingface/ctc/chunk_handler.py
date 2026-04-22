@@ -127,7 +127,7 @@ class CTCChunkHandler(AudioChunkHandler):
                     full_audio,
                     sampling_rate=self.sample_rate,
                     return_tensors="pt"
-                ).input_values
+                ).input_values.to(self.model.device)
 
                 logits = self.model(input_values).logits
                 predicted_ids = torch.argmax(logits, dim=-1)
